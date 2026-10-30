@@ -1,0 +1,70 @@
+---
+// «Tu web a tu medida»: el dueño elige qué se ve en su web (páginas, bloques de la portada y botones).
+// Cada interruptor se guarda al tocarlo; la web cambia al momento. Lo oculto no se borra.
+import Admin from '../../layouts/Admin.astro';
+import { PAGINAS, PORTADA, BOTONES, leerOcultos } from '../../lib/secciones.js';
+const ocultos = await leerOcultos(Astro.locals.runtime.env.DB);
+const ayuda = (x: { ayuda: string; ayudaNuevo?: string }) => x.ayudaNuevo || x.ayuda;
+const bloquesPortada = PORTADA;
+const visible = (grupo: string, id: string) => !ocultos.includes(`${grupo}:${id}`);
+const sinEncargo = !visible('pagina', 'encargo');
+---
+<Admin titulo="Tu web" seccion="web">
+  <div class="fila-titulo">
+    <div><h1>Tu web a tu medida</h1><p class="suave">Elige qué se ve en tu web. Cada cambio sale en la web al momento. Lo que quites no se borra: lo vuelves a poner cuando quieras.</p></div>
+    <a class="boton secundario" href="/" target="_blank" rel="noopener">Ver mi web ↗</a>
+  </div>
+
+  <div class="caja">
+    <h2>Páginas</h2>
+    <p class="suave">Si quitas una página, desaparece del menú y del pie, y si alguien entra por un enlace antiguo ve la página de «no encontrada». Inicio, Stock, las fichas de los coches y Contacto están siempre.</p>
+    <ul class="opciones-web">
+      {PAGINAS.map((p) => (
+        <li>
+          <label class="opcion-web">
+            <span class="opcion-texto"><b>{p.nombre}</b><small>{ayuda(p)}</small></span>
+            <input type="checkbox" role="switch" data-web={`pagina:${p.id}`} checked={visible('pagina', p.id)} aria-label={`${p.nombre}: se ve en la web`} />
+          </label>
+          <a class="opcion-ver" href={p.ruta} target="_blank" rel="noopener">Ver página ↗</a>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <div class="caja">
+    <h2>Portada</h2>
+    <p class="suave">Los bloques que salen en la página de inicio, en su orden. «Stock destacado» (tus coches) está siempre.</p>
+    <ul class="opciones-web">
+      {bloquesPortada.map((b) => {
+        const depende = b.id === 'importacion';
+        return (
+          <li>
+            <label class="opcion-web" data-depende={depende ? 'pagina:encargo' : undefined}>
+              <span class="opcion-texto"><b>{b.nombre}</b><small>{ayuda(b)}</small>{depende && <small class="nota-depende" hidden={!sinEncargo}>Ahora no sale porque has quitado la página «Encargo a medida».</small>}</span>
+              <input type="checkbox" role="switch" data-web={`portada:${b.id}`} checked={visible('portada', b.id)} disabled={depende && sinEncargo} aria-label={`${b.nombre}: se ve en la portada`} />
+            </label>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+
+  <div class="caja">
+    <h2>Botones</h2>
+    <ul class="opciones-web">
+      {BOTONES.map((b) => (
+        <li>
+          <label class="opcion-web">
+            <span class="opcion-texto"><b>{b.nombre}</b><small>{ayuda(b)}</small></span>
+            <input type="checkbox" role="switch" data-web={`boton:${b.id}`} checked={visible('boton', b.id)} aria-label={`${b.nombre}: se ve en la web`} />
+          </label>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <div class="caja">
+    <h2>¿Quieres cambiar algo más?</h2>
+    <p class="suave">Un texto, una foto, el horario, una sección nueva o quitar algo que no está aquí: díselo a NeumorStudio y lo dejamos como tú quieras. Sin paquetes ni cosas que no uses.</p>
+  </div>
+</Admin>

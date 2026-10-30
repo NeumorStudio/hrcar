@@ -1,0 +1,90 @@
+---
+import { NEGOCIO, SITIO, NOMBRE_WEB } from '../../negocio.js';
+// Inicio del panel: lo que toca hoy de un vistazo (mensajes sin contestar, tareas y cómo va el mes).
+import Admin from '../../layouts/Admin.astro';
+import { resumenPanel, telWhatsApp } from '../../lib/crm.js';
+import { ultimosSinLeer } from '../../lib/datos.js';
+import { usoFotos } from '../../lib/fotos.js';
+import { recuperarPendientes } from '../../lib/pendientes.js';
+import { euros } from '../../lib/formato.js';
+const env = Astro.locals.runtime.env;
+await recuperarPendientes(env); // mensajes que llegaron mientras la base de datos no respondía
+const [r, sinLeer, uso] = await Promise.all([resumenPanel(env.DB), ultimosSinLeer(env.DB, 3), usoFotos(env.DB).catch(() => null)]);
+const n = (e) => r.estados[e] ?? 0;
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const nombreMes = MESES[Number(r.ventas.mes.slice(5, 7)) - 1];
+const NOMBRES = { contacto: 'Contacto', encargo: 'Encargo a medida', financiacion: 'Financiación', tasacion: 'Tasación', reserva: 'Pre-reserva', interes: 'Interés por un coche' };
+const hace = (f) => {
+  const min = Math.max(0, Math.round((Date.now() - new Date(f.replace(' ', 'T') + 'Z').getTime()) / 60000));
+  if (min < 60) return `hace ${min} min`;
+  if (min < 1440) return `hace ${Math.round(min / 60)} h`;
+  const d = Math.round(min / 1440);
+  return d === 1 ? 'ayer' : `hace ${d} días`;
+};
+const fecha = (f) => (f ? f.split('-').reverse().slice(0, 2).join('/') : '');
+const bienvenida = Astro.url.searchParams.has('bienvenida'); // recién puesta su contraseña con el enlace
+---
+<Admin titulo="Inicio" seccion="inicio">
+  <div class="fila-titulo"><div><h1>Hola</h1><p class="suave">Resumen de {NEGOCIO.nombre}</p></div><a class="boton" href="/admin/coche/nuevo">+ Añadir vehículo</a></div>
+
+  {bienvenida && (
+    <div class="caja bienvenida">
+      <h2>¡Ya estás dentro!</h2>
+      <p>Tu contraseña está guardada. Tres cosas para empezar:</p>
+      <ol>
+        <li><b>Activa los avisos en el móvil</b> (<a href="/admin/ajustes#avisos">Ajustes → Avisos en el móvil</a>): te llega un aviso cada vez que un cliente te escribe desde la web.</li>
+        <li><b>Mira tus coches</b> en <a href="/admin/inventario">Coches</a>: con «Editar» cambias un precio, una foto o lo que sea, y pulsas «Guardar cambios».</li>
+        <li><b>Decide qué se ve en tu web</b> en <a href="/admin/web">Tu web</a>: quita lo que no uses y vuelve a ponerlo cuando quieras.</li>
+      </ol>
+    </div>
+  )}
+
+  {sinLeer.length > 0 && (
+    <div class="caja">
+      <div class="fila-titulo" style="margin-bottom:6px"><h2>Mensajes sin leer ({r.mensajesNuevos})</h2><a class="boton secundario pequeno" href="/admin/mensajes?nuevos=1">Ver todos</a></div>
+      {sinLeer.map((m) => {
+        const wa = telWhatsApp(m.telefono);
+        return (
+          <div class="tarea" data-mensaje={m.id}>
+            <a href="/admin/mensajes?nuevos=1" style="color:inherit;text-decoration:none"><b>{m.nombre || m.telefono || m.email}</b> · {NOMBRES[m.formulario] || m.asunto}{m.coche && ` · ${m.coche}`} <span class="suave">({hace(m.fecha)})</span></a>
+            <span class="botonera">
+              {m.telefono && <a class="boton pequeno" href={`tel:${(m.telefono || '').replace(/[^\d+]/g, '')}`} data-contactar>Llamar</a>}
+              {wa && <a class="boton secundario pequeno" href={`https://wa.me/${wa}`} target="_blank" rel="noopener" data-contactar>WhatsApp</a>}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  )}
+
+  <div class="tarjetas-resumen">
+    <a class="resumen" href="/admin/mensajes?nuevos=1"><b>{r.mensajesNuevos}</b><span>mensajes nuevos</span></a>
+    <a class="resumen" href="/admin/inventario"><b>{n('Disponible')}</b><span>coches disponibles</span></a>
+    <a class="resumen" href="/admin/inventario"><b>{n('Próximamente') + n('Reservado')}</b><span>próximamente / reservados</span></a>
+    <a class="resumen" href="/admin/ventas"><b>{r.ventas.coches}</b><span>vendidos en {nombreMes}</span></a>
+    <a class="resumen" href="/admin/ventas"><b>{euros(r.ventas.facturado)}</b><span>facturado en {nombreMes}</span></a>
+    <a class="resumen" href="/admin/ventas"><b>{euros(r.ventas.beneficio)}</b><span>beneficio en {nombreMes}</span></a>
+  </div>
+
+  {uso && uso.porcentaje >= 80 && (
+    <div class="caja aviso-caja">
+      <h2>El espacio para fotos se está llenando ({uso.porcentaje} %)</h2>
+      <p class="suave" style="margin:0">Cuando se llene no podrás subir más fotos. En <a href="/admin/ajustes#espacio">Ajustes</a> puedes liberar el de los coches vendidos hace tiempo (se queda su portada).</p>
+    </div>
+  )}
+
+  <div class="caja">
+    <div class="fila-titulo"><h2>Para hoy</h2><a class="boton secundario pequeno" href="/admin/tareas">Todas las tareas</a></div>
+    {r.tareas.length === 0 && <p class="suave">Nada pendiente para hoy.</p>}
+    {r.tareas.map((t) => (
+      <div class={`tarea ${t.atrasada ? 'atrasada' : ''}`} data-tarea={t.id}>
+        <label><input type="checkbox" data-hecha /> <span class="titulo-tarea">{t.titulo}</span></label>
+        <span class="suave">{t.atrasada ? `atrasada (${fecha(t.fecha)})` : t.hora || 'hoy'}{t.cliente_nombre && ` · ${t.cliente_nombre}`}{t.cliente_telefono && <a href={`tel:${t.cliente_telefono}`}> 📞</a>}</span>
+      </div>
+    ))}
+  </div>
+  <div class="dos">
+    <a class="caja enlace-caja" href="/admin/calculadora"><h2>Calculadora de importación</h2><p class="suave">Pega un anuncio y mira qué margen deja.</p></a>
+    <a class="caja enlace-caja" href="/admin/clientes"><h2>Clientes</h2><p class="suave">Quién ha preguntado por qué coche, con su historial.</p></a>
+  </div>
+</Admin>

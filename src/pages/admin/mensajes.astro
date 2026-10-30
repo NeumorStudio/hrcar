@@ -1,0 +1,79 @@
+---
+import { NEGOCIO, SITIO, NOMBRE_WEB } from '../../negocio.js';
+// Mensajes de los formularios de la web, de 50 en 50, con respuesta directa (llamar, WhatsApp con el texto
+// ya escrito, email con asunto). Al usar uno de esos botones, el mensaje se marca como leído.
+import Admin from '../../layouts/Admin.astro';
+import { listarMensajes, contarMensajesNuevos } from '../../lib/datos.js';
+import { telWhatsApp } from '../../lib/crm.js';
+import { recuperarPendientes } from '../../lib/pendientes.js';
+import { ETIQUETAS } from '../api/formulario.js';
+const env = Astro.locals.runtime.env;
+const recuperados = await recuperarPendientes(env); // los que llegaron mientras la base de datos no respondía
+const q = Astro.url.searchParams;
+const soloNuevos = q.get('nuevos') === '1';
+const antes = Number(q.get('antes')) || null;
+const [{ mensajes, hayMas }, nuevos] = await Promise.all([listarMensajes(env.DB, { antes, nuevos: soloNuevos }), contarMensajesNuevos(env.DB)]);
+const correoListo = !!env.RESEND_API_KEY;
+const NOMBRES = { contacto: 'Contacto', encargo: 'Encargo a medida', financiacion: 'Financiación', tasacion: 'Tasación', reserva: 'Pre-reserva', interes: 'Interés por un coche' };
+const fecha = (f) => new Date(f.replace(' ', 'T') + 'Z').toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+const tel = (t) => (t || '').replace(/[^\d+]/g, '');
+const OMITIR = new Set(['nombre', 'name', 'contactName', 'email', 'contactEmail', 'telefono', 'phone', 'contactPhone', 'coche', 'acepto', 'consentimiento_financiera']);
+const TEXTO = ['mensaje', 'message', 'comments'];
+const primerNombre = (n) => (n || '').trim().split(/\s+/)[0] || '';
+const saludo = (m) => `Hola${primerNombre(m.nombre) ? ` ${primerNombre(m.nombre)}` : ''}, te escribo de ${NEGOCIO.nombre} por tu mensaje en la web${m.coche ? ` sobre el ${m.coche}` : ''}.`;
+const enlaceWa = (m) => { const n = telWhatsApp(m.telefono); return n ? `https://wa.me/${n}?text=${encodeURIComponent(saludo(m))}` : null; };
+const enlaceEmail = (m) => `mailto:${m.email}?subject=${encodeURIComponent(`${NOMBRES[m.formulario] || m.asunto || 'Tu mensaje'}${m.coche ? `: ${m.coche}` : ''} · ${NEGOCIO.nombre}`)}&body=${encodeURIComponent(`${saludo(m)}\n\n`)}`;
+const base = soloNuevos ? '/admin/mensajes?nuevos=1' : '/admin/mensajes';
+const siguiente = hayMas && mensajes.length ? `${base}${soloNuevos ? '&' : '?'}antes=${mensajes[mensajes.length - 1].id}` : null;
+---
+<Admin titulo="Mensajes" seccion="mensajes">
+  <div class="fila-titulo"><div><h1>Mensajes</h1><p class="suave">Todo lo que llega desde los formularios de la web.{correoListo ? ' También te llega por correo.' : <> Para enterarte al momento, activa los avisos en el móvil en <a href="/admin/ajustes">Ajustes</a>.</>}</p></div>
+    {nuevos > 0 && <button type="button" class="boton secundario" data-api-boton="/api/admin/mensajes/leidos" data-aviso="Todos marcados como leídos" data-recargar>Marcar todos como leídos</button>}
+  </div>
+  {recuperados > 0 && <div class="caja aviso-caja"><b>{recuperados} {recuperados === 1 ? 'mensaje recuperado' : 'mensajes recuperados'}</b>: llegaron mientras la web tenía un problema y ya están aquí.</div>}
+  <nav class="filtro-mensajes" aria-label="Filtrar mensajes">
+    <a href="/admin/mensajes" class={soloNuevos ? '' : 'activa'}>Todos</a>
+    <a href="/admin/mensajes?nuevos=1" class={soloNuevos ? 'activa' : ''}>Sin leer ({nuevos})</a>
+  </nav>
+  {mensajes.length === 0 && <div class="caja vacio">{soloNuevos ? 'No tienes mensajes sin leer.' : antes ? 'No hay mensajes más antiguos.' : 'Aún no hay mensajes.'}</div>}
+  {mensajes.map((m) => {
+    const texto = TEXTO.map((k) => m.datos[k]).find(Boolean);
+    const otros = Object.entries(m.datos).filter(([k]) => !OMITIR.has(k) && !TEXTO.includes(k));
+    const wa = m.telefono ? enlaceWa(m) : null;
+    return (
+      <article class={`mensaje ${m.leido ? '' : 'nuevo'}`} data-mensaje={m.id}>
+        <div class="cabecera-msg">
+          <div><span class="tipo">{NOMBRES[m.formulario] || m.asunto}</span>{m.coche && <span> · {m.coche}</span>}</div>
+          <span class="fecha">{fecha(m.fecha)}{m.enviado || !correoListo ? '' : ' · sin correo'}</span>
+        </div>
+        <div class="contacto">
+          {m.nombre && <strong>{m.nombre}</strong>}
+          {m.telefono && <span>📞 {m.telefono}</span>}
+          {m.email && <span>✉ {m.email}</span>}
+        </div>
+        {texto && <p style="white-space:pre-wrap">{texto}</p>}
+        {otros.length > 0 && (
+          <details>
+            <summary>Ver todos los datos</summary>
+            <table>{otros.map(([k, val]) => <tr><td>{ETIQUETAS[k] || k}</td><td>{val}</td></tr>)}</table>
+            {m.fotos > 0 && <p class="suave">{m.fotos} foto(s): {correoListo ? 'van adjuntas en el correo.' : 'se adjuntan en el correo cuando el envío de correos esté activado.'}</p>}
+          </details>
+        )}
+        <div class="acciones-msg">
+          {m.telefono && <a class="boton pequeno" href={`tel:${tel(m.telefono)}`} data-contactar>Llamar</a>}
+          {wa && <a class="boton secundario pequeno" href={wa} target="_blank" rel="noopener" data-contactar>WhatsApp</a>}
+          {m.email && <a class="boton secundario pequeno" href={enlaceEmail(m)} data-contactar>Responder por email</a>}
+          {m.cliente_id && <a class="boton secundario pequeno" href={`/admin/clientes/${m.cliente_id}`}>Ver cliente</a>}
+          <button type="button" class="boton secundario pequeno" data-leido={m.leido ? '0' : '1'}>{m.leido ? 'Marcar como nuevo' : 'Marcar como leído'}</button>
+          <button type="button" class="boton peligro pequeno" data-borrar-mensaje>Borrar</button>
+        </div>
+      </article>
+    );
+  })}
+  {(siguiente || antes) && (
+    <nav class="paginas" aria-label="Más mensajes">
+      {antes && <a class="boton secundario pequeno" href={base}>← Los más recientes</a>}
+      {siguiente && <a class="boton secundario" href={siguiente}>Ver más antiguos</a>}
+    </nav>
+  )}
+</Admin>

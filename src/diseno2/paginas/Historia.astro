@@ -1,0 +1,52 @@
+---
+// Últimas entregas: los coches que el dueño marca como Vendido en el panel.
+import Marco from '../Marco.astro';
+import Faq from '../Faq.astro';
+import { PREGUNTAS } from '../contenido.js';
+import { fotoUrl } from '../../lib/plantillas.js';
+import { eurosMiles, kmsMiles, precioFinal, tieneFotos } from '../../lib/formato.js';
+import { tituloLimpio } from '../../lib/nombres.js';
+import { NEGOCIO } from '../../negocio.js';
+interface Props { vendidos?: any[] }
+const { vendidos = [] } = Astro.props;
+const fecha = (f: string | null) => (f ? f.slice(0, 10).split('-').reverse().join('/') : 'Recientemente');
+const entregas = vendidos.map((c) => ({
+  titulo: tituloLimpio(c),
+  datos: [c.anio, c.km != null ? kmsMiles(c.km) : null].filter(Boolean).join(' · '),
+  precio: precioFinal(c) > 0 ? eurosMiles(precioFinal(c)) : '',
+  fecha: fecha(c.fecha_venta),
+  foto: tieneFotos(c) ? fotoUrl(c.fotos[0]) : '/img/covered-car.webp',
+}));
+---
+<Marco pagina="historia" title={`Últimas entregas | ${NEGOCIO.nombre}`} description={`Los coches que ya han encontrado dueño en ${NEGOCIO.nombre}. Gracias a nuestros clientes por su confianza.`} robots={entregas.length ? 'index, follow' : 'noindex, follow'}>
+  <header class="cabecera-pagina">
+    <div class="envoltorio">
+      <span class="antetitulo">Historia</span>
+      <h1>Últimas entregas</h1>
+      <p>{entregas.length ? 'Gracias a nuestros clientes por su confianza.' : 'Muy pronto, aquí verás los coches que ya han encontrado dueño.'}</p>
+    </div>
+  </header>
+  {entregas.length > 0 && (
+    <section class="seccion sin-borde">
+      <div class="envoltorio rejilla">
+        {entregas.map((e) => (
+          <article class="tarjeta vendido revela">
+            <div class="tarjeta-foto"><img src={e.foto} alt={e.titulo} width="800" height="600" loading="lazy" /><span class="etiqueta">Entregado: {e.fecha}</span></div>
+            <div class="tarjeta-cuerpo">
+              <h3>{e.titulo}</h3>
+              <div class="precio-fila"><span class="precio">{e.precio}</span><span class="cuota">{e.datos}</span></div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )}
+  <section class="seccion">
+    <div class="envoltorio titulo-seccion centrado revela" style="margin-bottom:0">
+      <h2>¿Buscas el tuyo?</h2>
+      <p>Mira los coches que tenemos ahora o cuéntanos qué buscas y te lo encontramos.</p>
+      <div class="hero-acciones" style="margin-top:12px"><a class="btn grande" href="/stock">Ver coches en stock</a><a class="btn grande contorno" href="/custom-order">Encargo a medida</a></div>
+    </div>
+  </section>
+  <Faq preguntas={PREGUNTAS} />
+</Marco>

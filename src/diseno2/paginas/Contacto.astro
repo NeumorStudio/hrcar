@@ -1,0 +1,33 @@
+---
+// Contacto: datos, horario y formulario.
+import Marco from '../Marco.astro';
+import Faq from '../Faq.astro';
+import Formulario from '../Formulario.astro';
+import { TELEFONO, TELEFONO_BONITO, WHATSAPP, EMAIL, MAPA, HORARIO, DIRECCION } from '../datos-contacto.js';
+import { PREGUNTAS_CONTACTO } from '../contenido.js';
+import { NEGOCIO } from '../../negocio.js';
+---
+<Marco pagina="contacto" title={`Contacto | ${NEGOCIO.nombre}, ${NEGOCIO.localidad}`} description={`Llámanos o escríbenos por WhatsApp al ${NEGOCIO.telefonoBonito}. ${NEGOCIO.nombre}, ${NEGOCIO.localidad}.`}>
+  <div class="envoltorio pagina-sencilla">
+    <h1>Contacto</h1>
+    <p class="intro">Estamos aquí para ayudarte en cada paso de la compra o la venta de tu coche. Lo más rápido es WhatsApp.</p>
+    <div class="contacto" style="margin-top:28px">
+      <div class="datos-contacto">
+        <div><small>WhatsApp y teléfono</small><a href={`tel:${TELEFONO}`}>{TELEFONO_BONITO}</a></div>
+        <div><small>Email</small><a href={`mailto:${EMAIL}`} style="font-size:1.1rem">{EMAIL}</a></div>
+        <div><small>Zona</small><a href={MAPA} target="_blank" rel="noopener">{DIRECCION}</a><small>Escríbenos antes de venir y te damos la dirección exacta</small></div>
+        <div><small>Horario</small><span>{HORARIO}</span></div>
+        <div><a class="btn wa grande" href={WHATSAPP} target="_blank" rel="noopener">Abrir WhatsApp</a></div>
+      </div>
+      <div class="panel">
+        <h2 style="font-size:1.7rem;margin-bottom:12px">Envíanos un mensaje</h2>
+        <Formulario tipo="contacto" asunto="Mensaje de contacto" boton="Enviar mensaje" exito="Mensaje enviado. Te contestamos en cuanto podamos.">
+          <Fragment slot="antes">
+            <label>Asunto<select name="tema"><option>Información general</option><option>Ventas</option><option>Taller / Postventa</option><option>Administración</option></select></label>
+          </Fragment>
+        </Formulario>
+      </div>
+    </div>
+  </div>
+  <Faq preguntas={PREGUNTAS_CONTACTO} titulo="Preguntas sobre contacto" subtitulo="Todo lo que necesitas saber para ponerte en contacto con nosotros." />
+</Marco>

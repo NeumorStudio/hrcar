@@ -1,0 +1,71 @@
+---
+// Financiación: simulador + solicitud.
+import Marco from '../Marco.astro';
+import Faq from '../Faq.astro';
+import Formulario from '../Formulario.astro';
+import { precioFinal, eurosMiles } from '../../lib/formato.js';
+import { tituloLimpio } from '../../lib/nombres.js';
+import { ejemploRepresentativo, TIN, TAE, porcentaje, PLAZO_POR_DEFECTO, IMPORTE_POR_DEFECTO } from '../finanzas.js';
+import { CONSENTIMIENTO_FINANCIERA } from '../../lib/legal.js';
+import { FINANCIACION } from '../contenido.js';
+import { NEGOCIO } from '../../negocio.js';
+interface Props { coches: any[] }
+const { coches } = Astro.props;
+const enVenta = coches.filter((c) => c.estado !== 'Vendido' && precioFinal(c) > 0);
+const F = FINANCIACION;
+---
+<Marco pagina="financiacion" title={`Financiación de coches | ${NEGOCIO.nombre} ${NEGOCIO.localidad}`} description="Calcula tu cuota y pide tu estudio de financiación sin compromiso: condiciones adaptadas a tu perfil, respuesta rápida y sin comisiones ocultas.">
+  <div class="envoltorio pagina-sencilla" style="padding-bottom:0">
+    <h1>{F.h1}</h1>
+    <p class="intro">{F.texto}</p>
+  </div>
+  <section class="seccion oscura" style="margin-top:28px">
+    <div class="envoltorio">
+      <div class="simulador" data-simulador>
+        <div>
+          <div class="deslizador">
+            <div class="valor"><span>Importe</span><output data-valor-importe>{eurosMiles(IMPORTE_POR_DEFECTO)}</output></div>
+            <input type="range" name="importe" min="3000" max="60000" step="500" value={IMPORTE_POR_DEFECTO} aria-label="Importe a financiar" />
+          </div>
+          <div class="deslizador">
+            <div class="valor"><span>Plazo</span><output data-valor-plazo>{PLAZO_POR_DEFECTO} meses</output></div>
+            <input type="range" name="plazo" min="12" max="120" step="12" value={PLAZO_POR_DEFECTO} aria-label="Plazo en meses" />
+          </div>
+          {enVenta.length > 0 && (
+            <label class="elegir-coche">Coche del stock (opcional)
+              <select name="coche" data-coche-precio>
+                <option value="">Elige un coche para usar su precio</option>
+                {enVenta.map((c) => <option value={tituloLimpio(c)} data-precio={precioFinal(c)}>{tituloLimpio(c)} — {eurosMiles(precioFinal(c))}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+        <div class="cuota-grande"><small>Cuota mensual estimada</small><strong data-cuota>—</strong><small>TIN {porcentaje(TIN)} % · TAE desde {porcentaje(TAE)} % · sujeta a aprobación de la entidad financiera</small></div>
+      </div>
+      <p class="nota-financiacion">{ejemploRepresentativo()}</p>
+    </div>
+  </section>
+  <section class="seccion">
+    <div class="envoltorio bloque" style="align-items:start">
+      <div>
+        <h2 style="margin-bottom:8px">Ventajas de financiar con {NEGOCIO.nombre}</h2>
+        <ul class="lista-simple">{F.ventajas.map((v) => <li>{v}</li>)}</ul>
+        <h3 style="margin-top:28px">Documentación necesaria</h3>
+        <ul class="lista-simple">{F.documentos.map((v) => <li>{v}</li>)}</ul>
+      </div>
+      <div>
+        <h2 style="margin-bottom:8px">Pide tu estudio de financiación</h2>
+        <p class="intro" style="color:var(--suave);margin-bottom:18px">Te decimos qué cuota puedes tener. Gratis y sin compromiso.</p>
+        <Formulario tipo="financiacion" asunto="Solicitud de financiación" boton="Enviar solicitud de financiación" exito="Solicitud recibida. Te llamamos con tu propuesta en cuanto la tengamos.">
+          <div class="fila">
+            <label>Importe a financiar (€)<input type="number" name="importe" min="1000" step="100" data-copia-importe /></label>
+            <label>Plazo (meses)<input type="number" name="plazo" min="12" max="120" step="12" data-copia-plazo /></label>
+          </div>
+          <label>Coche que te interesa<input type="text" name="coche" data-copia-coche /></label>
+          <label class="check" slot="final"><input type="checkbox" name="consentimiento_financiera" value="Sí" required /> <span>{CONSENTIMIENTO_FINANCIERA}</span></label>
+        </Formulario>
+      </div>
+    </div>
+  </section>
+  <Faq preguntas={F.preguntas} titulo="Preguntas sobre financiación" subtitulo="Todo lo que necesitas saber antes de financiar tu coche." />
+</Marco>

@@ -1,0 +1,20 @@
+---
+import { NEGOCIO, SITIO, NOMBRE_WEB } from '../../negocio.js';
+// Primera vez: crear la contraseña del panel. Si ya existe, manda a entrar.
+import Admin from '../../layouts/Admin.astro';
+import { hayContrasena, MIN_LONGITUD } from '../../lib/acceso.js';
+if (await hayContrasena(Astro.locals.runtime.env.DB)) return Astro.redirect('/admin/entrar');
+---
+<Admin titulo="Crear contraseña" sinMenu>
+  <div class="acceso-logo"><img src={NEGOCIO.logo} alt={NEGOCIO.nombre} style="border-radius:50%" /></div>
+  <div class="caja">
+    <h1>Bienvenido al panel</h1>
+    <p class="suave">Crea la contraseña con la que entrarás a gestionar los coches. Guárdala bien: no hay forma de recuperarla por correo.</p>
+    <form data-api="/api/admin/configurar" data-ir="/admin">
+      <label class="campo"><span>Contraseña nueva</span><input type="password" name="clave" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
+      <label class="campo"><span>Repítela</span><input type="password" name="clave2" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
+      <p class="ayuda">Mínimo {MIN_LONGITUD} caracteres. Mejor una frase que recuerdes, por ejemplo tres palabras y un número.</p>
+      <button class="boton" type="submit" style="width:100%">Crear y entrar</button>
+    </form>
+  </div>
+</Admin>

@@ -1,0 +1,29 @@
+[
+ {
+  "slug": "volkswagen-2785b1",
+  "titulo": "Volkswagen Scirocco",
+  "marca": "Volkswagen",
+  "modelo": "Scirocco",
+  "version": null,
+  "estado": "Próximamente",
+  "tipo": "Ocasión",
+  "carroceria": "Coupé",
+  "combustible": "Gasolina",
+  "cambio": "Manual",
+  "puertas": 3,
+  "potencia_cv": 122,
+  "color": null,
+  "etiqueta_dgt": null,
+  "garantia_meses": null,
+  "ubicacion": "Zaragoza",
+  "anio": 2010,
+  "km": null,
+  "precio": 0,
+  "precio_oferta": null,
+  "precio_financiado": null,
+  "reservable": false,
+  "fotos": [],
+  "descripcion": "",
+  "fecha_venta": null
+ }
+]

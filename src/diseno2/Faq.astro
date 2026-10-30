@@ -1,0 +1,13 @@
+---
+// Preguntas frecuentes con <details>: sin JavaScript y accesibles.
+interface Props { preguntas: [string, string][]; titulo?: string; subtitulo?: string }
+const { preguntas, titulo = 'Preguntas frecuentes', subtitulo = 'Resolvemos tus dudas de forma rápida y clara.' } = Astro.props;
+---
+<section class="seccion">
+  <div class="envoltorio">
+    <div class="titulo-seccion centrado revela"><h2>{titulo}</h2><p>{subtitulo}</p></div>
+    <div class="faq revela">
+      {preguntas.map(([p, r]) => (<details><summary>{p}</summary><p>{r}</p></details>))}
+    </div>
+  </div>
+</section>

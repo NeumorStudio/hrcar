@@ -1,0 +1,51 @@
+---
+// Encargo a medida: el cliente pide un coche concreto y el concesionario se lo busca e importa.
+import Marco from '../Marco.astro';
+import Faq from '../Faq.astro';
+import Formulario from '../Formulario.astro';
+import { ENCARGO } from '../contenido.js';
+import { NEGOCIO } from '../../negocio.js';
+---
+<Marco pagina="encargo" title={`Encargo a medida: te buscamos tu coche ideal | ${NEGOCIO.nombre}`} description="Solicita el coche que buscas y nos encargamos de la compra, la importación, los trámites y la entrega en tu domicilio.">
+  <section class="hero interior">
+    <div class="hero-foto"><img src="/img-web/importacion.webp" alt="" width="1280" height="720" fetchpriority="high" decoding="async" /></div>
+    <div class="envoltorio">
+      <span class="antetitulo">Servicio premium</span>
+      <h1>{ENCARGO.h1}</h1>
+      <p>{ENCARGO.texto}</p>
+      <div class="hero-acciones"><a class="btn grande claro" href="#encargar">Comenzar encargo</a></div>
+    </div>
+  </section>
+  <section class="seccion">
+    <div class="envoltorio">
+      <div class="titulo-seccion"><div><h2>Cómo funciona</h2><p>Un proceso pensado para que sea sencillo y transparente.</p></div></div>
+      <ol class="pasos" style="max-width:720px">
+        {ENCARGO.pasos.map(([t, p]) => <li><div><b>{t}</b><p>{p}</p></div></li>)}
+      </ol>
+    </div>
+  </section>
+  <section class="seccion blanca" id="encargar">
+    <div class="envoltorio" style="max-width:760px">
+      <h2 style="margin-bottom:8px">Cuéntanos qué buscas</h2>
+      <p class="intro" style="color:var(--suave);margin-bottom:18px">Te responderemos con la viabilidad y un presupuesto aproximado.</p>
+      <Formulario tipo="encargo" asunto="Encargo a medida" boton="Enviar solicitud de encargo" mensaje={false} exito="Encargo recibido. Empezamos a buscar y te escribimos con opciones.">
+        <Fragment slot="antes">
+          <div class="fila">
+            <label>Marca<input type="text" name="make" required /></label>
+            <label>Modelo<input type="text" name="model" required /></label>
+          </div>
+          <div class="fila">
+            <label>Año mínimo<input type="number" name="minYear" min="1990" max={new Date().getFullYear() + 1} /></label>
+            <label>Presupuesto máximo (€)<input type="number" name="maxBudget" min="1000" step="500" /></label>
+          </div>
+          <div class="fila">
+            <label>Combustible<select name="fuel"><option value="">Me da igual</option><option>Gasolina</option><option>Diésel</option><option>Híbrido</option><option>Híbrido enchufable</option><option>Eléctrico</option></select></label>
+            <label>Cambio<select name="transmission"><option value="">Me da igual</option><option>Manual</option><option>Automático</option></select></label>
+          </div>
+        </Fragment>
+        <label>Comentarios / extras imprescindibles<textarea name="comments"></textarea></label>
+      </Formulario>
+    </div>
+  </section>
+  <Faq preguntas={ENCARGO.preguntas} titulo="Preguntas sobre encargos a medida" subtitulo="Aclaramos tus dudas antes de empezar." />
+</Marco>

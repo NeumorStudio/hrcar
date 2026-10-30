@@ -1,0 +1,159 @@
+---
+// Ficha de un coche: galería, precio y cuota, acciones de contacto, datos, descripción y pre-reserva.
+import Marco from '../Marco.astro';
+import Tarjeta from '../Tarjeta.astro';
+import Faq from '../Faq.astro';
+import Formulario from '../Formulario.astro';
+import { fotoUrl, fotoMini } from '../../lib/plantillas.js';
+import { eurosMiles as euros, kmsMiles as kms, precioFinal, tieneFotos } from '../../lib/formato.js';
+import { partesTitulo, tituloLimpio, motor } from '../../lib/nombres.js';
+import { cuotaMensual, ejemploRepresentativo, taeCoche, porcentaje, TIN, PLAZO_POR_DEFECTO } from '../finanzas.js';
+import { whatsappCoche, TELEFONO } from '../datos-contacto.js';
+import { PREGUNTAS_FICHA, garantiaFicha } from '../contenido.js';
+import { NEGOCIO, SITIO } from '../../negocio.js';
+interface Props { coche: any; otros: any[] }
+const { coche: c, otros } = Astro.props;
+const fotos = tieneFotos(c) ? c.fotos.map(fotoUrl) : ['/img/covered-car.webp'];
+const vendido = c.estado === 'Vendido';
+const precio = precioFinal(c);
+const enOferta = c.precio_oferta != null && c.precio_oferta < c.precio;
+// si el dueño pone un precio financiado (más alto que el de contado), la cuota sale de ese, no del de contado
+const financiado = c.precio_financiado != null && c.precio_financiado > precio ? c.precio_financiado : precio;
+const cuota = precio > 0 && !vendido ? cuotaMensual(financiado) : null;
+// con precio financiando más alto, la diferencia es coste del crédito: su TAE es la de este coche, no la general
+const taeEste = financiado > precio ? porcentaje(taeCoche(precio, financiado)) : null;
+// se puede pre-reservar si el dueño no lo ha desactivado, tiene precio y no está ya reservado o vendido
+const reservable = c.reservable !== false && precio > 0 && !['Reservado', 'Vendido'].includes(c.estado);
+const DISPONIBILIDAD: Record<string, string> = { Disponible: 'InStock', 'Próximamente': 'PreOrder', Reservado: 'Reserved', Vendido: 'SoldOut' };
+const url = `${SITIO}/stock/${c.slug}`;
+const limpio = tituloLimpio(c);
+const { nombre, version } = partesTitulo(c);
+const titulo = `${nombre}${c.anio ? ` ${c.anio}` : ''} de ocasión en ${NEGOCIO.localidad}`;
+const combustible = motor(c.combustible);
+// la descripción para Google sale siempre de los datos (la que escribe el dueño puede ir con prisas)
+const descripcion = `${limpio}${c.anio ? ` ${c.anio}` : ''}: ${[c.km != null && kms(c.km), combustible, c.cambio?.toLowerCase(), precio > 0 && euros(precio)].filter(Boolean).join(', ')}. Coche de ocasión en ${NEGOCIO.nombre}, ${NEGOCIO.localidad}.`.replace(/\s+/g, ' ').slice(0, 170);
+const ETIQUETAS: Record<string, string> = { '0': '0 emisiones', ECO: 'ECO', C: 'C', B: 'B' };
+// "ZARAGOZA" (como viene de los anuncios importados) → "Zaragoza"
+const bonita = (t: string | null) => (t && t === t.toUpperCase() && t.length > 3 ? t.toLowerCase().replace(/(^|[\s(-])\p{L}/gu, (m) => m.toUpperCase()) : t);
+const datos = [
+  ['Año', c.anio], ['Kilómetros', c.km != null ? kms(c.km) : null], ['Motor', combustible], ['Cambio', c.cambio],
+  ['Potencia', c.potencia_cv ? `${c.potencia_cv} CV` : null], ['Carrocería', c.carroceria], ['Puertas', c.puertas], ['Color', c.color],
+  ['Etiqueta DGT', c.etiqueta_dgt ? ETIQUETAS[c.etiqueta_dgt] || c.etiqueta_dgt : null], ['Garantía', c.garantia_meses ? `${c.garantia_meses} meses` : null], ['Tipo', c.tipo], ['Ubicación', bonita(c.ubicacion)],
+].filter(([, v]) => v);
+const parecidos = otros; // ya vienen elegidos de la base de datos: misma marca y precio parecido
+const wa = whatsappCoche(c);
+const preguntas = PREGUNTAS_FICHA;
+// JSON dentro de <script>: «<» escapado, así ningún título puede cerrar la etiqueta
+const ld = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
+const jsonLd = {
+  '@context': 'https://schema.org', '@type': 'Car', name: limpio, url, brand: c.marca ? { '@type': 'Brand', name: c.marca } : undefined, model: c.modelo, vehicleModelDate: c.anio ? String(c.anio) : undefined,
+  mileageFromOdometer: c.km != null ? { '@type': 'QuantitativeValue', value: c.km, unitCode: 'KMT' } : undefined,
+  fuelType: combustible || undefined, vehicleTransmission: c.cambio, color: c.color, image: fotos.map((f) => (f.startsWith('http') ? f : `${SITIO}${f}`)),
+  offers: precio > 0 ? { '@type': 'Offer', price: precio, priceCurrency: 'EUR', availability: `https://schema.org/${DISPONIBILIDAD[c.estado] || 'InStock'}`, url, itemCondition: 'https://schema.org/UsedCondition', seller: { '@type': 'AutoDealer', name: NEGOCIO.nombre } } : undefined,
+};
+---
+<Marco pagina="stock" title={`${titulo} | ${NEGOCIO.nombre}`} description={descripcion} ogImage={c.og_imagen || fotos[0]} robots={vendido ? 'noindex, follow' : 'index, follow'} barra={{ whatsapp: wa, texto: 'WhatsApp' }}>
+  <script type="application/ld+json" set:html={ld(jsonLd)} />
+  <script type="application/ld+json" set:html={ld({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Inicio', item: `${SITIO}/` },
+    { '@type': 'ListItem', position: 2, name: 'Stock', item: `${SITIO}/stock` },
+    { '@type': 'ListItem', position: 3, name: limpio, item: url },
+  ] })} />
+  <div class="envoltorio ficha-cabecera">
+    <nav class="miga" aria-label="Estás en"><a href="/">Inicio</a> › <a href="/stock">Stock</a> › {c.marca}</nav>
+    <h1>{nombre}</h1>
+    {version && <p class="ficha-version">{version}</p>}
+  </div>
+  <div class="envoltorio ficha-cuerpo">
+    <div class="ficha-principal">
+      <div class="galeria" data-galeria>
+        <div class="galeria-principal">
+          <img src={fotos[0]} alt={`${limpio}, foto 1`} width="1200" height="900" fetchpriority="high" decoding="async" data-galeria-principal />
+          {vendido && <div class="sello" aria-label="Vendido"><span>VENDIDO</span></div>}
+          {fotos.length > 1 && <>
+            <button type="button" class="galeria-flecha ant" aria-label="Foto anterior" data-galeria-paso="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m15 5-7 7 7 7"/></svg></button>
+            <button type="button" class="galeria-flecha sig" aria-label="Foto siguiente" data-galeria-paso="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 5 7 7-7 7"/></svg></button>
+            <span class="galeria-contador" data-galeria-contador>1 / {fotos.length}</span>
+          </>}
+        </div>
+        {fotos.length > 1 && (
+          <div class="galeria-miniaturas" role="tablist" aria-label="Fotos del coche">
+            {fotos.map((f, i) => <button type="button" role="tab" aria-current={i === 0 ? 'true' : 'false'} data-foto={f} aria-label={`Foto ${i + 1}`}><img src={fotoMini(f)} alt="" width="184" height="138" loading="lazy" decoding="async" /></button>)}
+          </div>
+        )}
+      </div>
+
+      <div class="panel ficha-datos">
+        <h2 style="font-size:1.7rem;margin-bottom:12px">Datos del coche</h2>
+        <div class="specs">
+          {datos.map(([n, v]) => <div><small>{n}</small><b>{v}</b></div>)}
+        </div>
+        {c.descripcion && <><h2 style="font-size:1.7rem;margin:22px 0 10px">Descripción</h2><p class="descripcion">{c.descripcion}</p></>}
+        <div class="garantia">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+          <p>{garantiaFicha(c.garantia_meses)}</p>
+        </div>
+      </div>
+
+      {reservable && (
+        <div class="panel" id="reservar" data-lidi-reserva>
+          <h2 style="font-size:1.7rem;margin-bottom:6px">Reservar por 100 €</h2>
+          <p class="nota" style="margin-bottom:14px">Apartamos el coche para ti. Confirmamos la disponibilidad, te llamamos y tienes 24 horas para pagar la señal. Si no se confirma en ese plazo, la pre-reserva caduca.</p>
+          <Formulario tipo="reserva" asunto="Pre-reserva (100 €)" boton="Confirmar pre-reserva" coche={limpio} mensaje={false} exito="Pre-reserva recibida. Te llamamos para confirmar la disponibilidad y el pago de la señal.">
+            <label class="check"><input type="checkbox" name="acepto" required /> Entiendo que esto es una pre-reserva: el concesionario confirmará la disponibilidad y tengo 24 h para pagar la señal de 100 €.</label>
+          </Formulario>
+        </div>
+      )}
+    </div>
+
+    <aside class="ficha-lateral">
+      <div class="panel ficha-precio">
+        <div class:list={['precio-grande', { 'oferta-precio': enOferta }]}>{enOferta && <del>{euros(c.precio)}</del>}{precio > 0 ? euros(precio) : 'Consultar precio'}</div>
+        {cuota ? (
+          financiado > precio
+            ? <p class="financiado">Precio financiando: <b>{euros(financiado)}</b>, desde <b>{euros(cuota)}</b>/mes a {PLAZO_POR_DEFECTO} meses (TAE {taeEste} %)*</p>
+            : <p class="financiado">o desde <b>{euros(cuota)}</b>/mes financiado a {PLAZO_POR_DEFECTO} meses*</p>
+        ) : <p class="financiado">&nbsp;</p>}
+        {vendido ? (
+          <p><b>Este coche ya está vendido.</b> Mira los que tenemos ahora en stock o cuéntanos qué buscas y te lo encontramos.</p>
+        ) : (
+          <div class="acciones-ficha">
+            <a class="btn wa grande" href={wa} target="_blank" rel="noopener">Preguntar por WhatsApp</a>
+            {reservable && <a class="btn" href="#reservar" data-lidi-reserva>Reservar por 100 €</a>}
+            <div class="acciones-dobles">
+              <a class="btn contorno" href={`tel:${TELEFONO}`}>Llamar</a>
+              <button type="button" class="btn contorno" data-compartir={url} data-titulo={limpio}>Compartir</button>
+            </div>
+            <a class="btn contorno" href="#informacion">Pedir más información</a>
+          </div>
+        )}
+        {vendido && <div class="acciones-ficha"><a class="btn" href="/stock">Ver el stock</a><a class="btn contorno" href="/custom-order">Encargar uno parecido</a></div>}
+        <p class="nota" style="margin-top:14px">{c.estado === 'Próximamente' ? <>Próximamente: el coche está de camino o en preparación. {reservable ? <span data-lidi-reserva>Puedes reservarlo ya.</span> : 'Pregúntanos y te avisamos en cuanto llegue.'}</> : c.estado === 'Reservado' ? 'Este coche está reservado. Si la reserva no se confirma, te avisamos.' : `Disponible en ${NEGOCIO.localidad}. Pide cita para verlo.`}</p>
+        {cuota && <p class="nota">*Cuota orientativa. {taeEste ? `Con el precio financiando (${euros(financiado)}) a ${PLAZO_POR_DEFECTO} meses al TIN ${porcentaje(TIN)} %, la TAE de este coche es ${taeEste} %: la diferencia con el precio al contado cuenta como coste de la financiación. ` : ''}{ejemploRepresentativo()}</p>}
+      </div>
+      {!vendido && (
+        <div class="panel" id="informacion">
+          <h3 style="margin-bottom:10px">Te llamamos nosotros</h3>
+          <Formulario tipo="interes" asunto="Interés por un coche" boton="Pedir información" coche={limpio} exito="Recibido. Te contactamos en cuanto podamos." />
+        </div>
+      )}
+    </aside>
+  </div>
+
+  {parecidos.length > 0 && (
+    <section class="seccion blanca">
+      <div class="envoltorio">
+        <div class="titulo-seccion"><h2>También te pueden interesar</h2><a class="enlace-flecha" href="/stock">Ver todo el stock</a></div>
+        <div class="rejilla">{parecidos.map((o) => <Tarjeta coche={o} />)}</div>
+      </div>
+    </section>
+  )}
+  <Faq preguntas={preguntas} />
+  <div class="visor" data-visor role="dialog" aria-modal="true" aria-label="Fotos a pantalla completa">
+    <button type="button" class="visor-cerrar" aria-label="Cerrar" data-visor-cerrar>×</button>
+    <button type="button" class="galeria-flecha ant" aria-label="Foto anterior" data-visor-paso="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m15 5-7 7 7 7"/></svg></button>
+    <img alt="" data-visor-img />
+    <button type="button" class="galeria-flecha sig" aria-label="Foto siguiente" data-visor-paso="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 5 7 7-7 7"/></svg></button>
+    <span class="visor-contador" data-visor-contador></span>
+  </div>
+</Marco>

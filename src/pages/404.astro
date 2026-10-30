@@ -1,0 +1,6 @@
+---
+export const prerender = true;
+import Sencilla from '../diseno2/paginas/Sencilla.astro';
+import { NEGOCIO } from '../negocio.js';
+---
+<Sencilla pagina="404" title={`Página no encontrada | ${NEGOCIO.nombre}`} robots="noindex" titulo="Esta página no existe" texto="Puede que el coche ya se haya vendido o que el enlace no sea correcto." />

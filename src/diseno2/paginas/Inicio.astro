@@ -1,0 +1,188 @@
+---
+// Portada: el contenido de la web del concesionario (src/diseno2/contenido.js), ordenado como un concesionario.
+import Marco from '../Marco.astro';
+import Tarjeta from '../Tarjeta.astro';
+import Faq from '../Faq.astro';
+import { ordenListado } from '../../lib/formato.js';
+import { WHATSAPP, TELEFONO, TELEFONO_BONITO, DIRECCION, MAPA, HORARIO, EMAIL } from '../datos-contacto.js';
+import { PORTADA, SERVICIOS, PREGUNTAS } from '../contenido.js';
+import { motor } from '../../lib/nombres.js';
+import { notaCuotas, TIN, TAE, porcentaje, PLAZO_POR_DEFECTO, IMPORTE_POR_DEFECTO } from '../finanzas.js';
+import { eurosMiles } from '../../lib/formato.js';
+import { NOTA_PRIVACIDAD } from '../../lib/legal.js';
+interface Props { coches: any[] }
+const { coches } = Astro.props;
+const listado = ordenListado(coches);
+const enVenta = listado.filter((c) => c.estado !== 'Vendido');
+const destacados = [...enVenta.filter((c) => c.estado === 'Disponible'), ...enVenta.filter((c) => c.estado !== 'Disponible')].slice(0, 6);
+const marcas = [...new Set(enVenta.map((c) => c.marca).filter(Boolean))].sort();
+const combustibles = [...new Set(enVenta.map((c) => c.combustible).filter(Boolean))].sort();
+const P = PORTADA;
+// con pocos coches, el botón no presume de cifra
+const botonStock = enVenta.length > 3 ? `Ver los ${enVenta.length} coches en stock` : 'Ver stock';
+---
+<Marco pagina="inicio" claseCuerpo="con-portada" title={P.title} description={P.description}>
+  <section class="hero">
+    <div class="hero-foto"><img src="/img-web/hero.webp" alt="" width="1280" height="720" fetchpriority="high" decoding="async" /></div>
+    <div class="envoltorio">
+      <span class="antetitulo entra">{P.antetitulo}</span>
+      <h1 class="entra">{P.h1}</h1>
+      <p class="entra">{P.entradilla}</p>
+      <div class="hero-acciones entra">
+        <a class="btn grande" href="/stock">{botonStock}</a>
+        <a class="btn grande contorno" href="/custom-order">Encargo a medida</a>
+      </div>
+      <div class="hero-cifras entra">
+        {P.cifras.map(([grande, pequeno]) => <div><b>{grande}</b><small>{pequeno}</small></div>)}
+      </div>
+    </div>
+  </section>
+
+  {marcas.length > 1 && (
+    <div class="envoltorio">
+      <form class="buscador revela" action="/stock" method="get" aria-label="Buscar en el stock">
+        <label>Marca
+          <select name="marca"><option value="">Todas</option>{marcas.map((m) => <option value={m}>{m}</option>)}</select>
+        </label>
+        <label>Precio hasta
+          <select name="precio"><option value="">Sin límite</option><option value="12000">12.000 €</option><option value="18000">18.000 €</option><option value="25000">25.000 €</option><option value="35000">35.000 €</option></select>
+        </label>
+        <label>Motor
+          <select name="combustible"><option value="">Cualquiera</option>{combustibles.map((m) => <option value={m}>{motor(m)}</option>)}</select>
+        </label>
+        <button class="btn grande" type="submit">Buscar</button>
+      </form>
+    </div>
+  )}
+
+  <section class="seccion sin-borde">
+    <div class="envoltorio">
+      <div class="titulo-seccion revela">
+        <div><span class="antetitulo">{P.stockAntetitulo}</span><h2>{P.stockTitulo}</h2></div>
+        <a class="enlace-flecha" href="/stock">Ver todo el stock</a>
+      </div>
+      {destacados.length > 0 ? (
+        <div class="rejilla">
+          {destacados.map((c, i) => <div class="revela"><Tarjeta coche={c} prioridad={i < 2} /></div>)}
+        </div>
+      ) : (
+        <p class="intro">Estamos preparando los próximos coches. Mientras tanto, <a href="/custom-order">te buscamos el que quieras</a>.</p>
+      )}
+      {destacados.length < 3 && (
+        <div class="aviso-busqueda revela">
+          <div><h3>{P.sinVerlo.titulo}</h3><p>{P.sinVerlo.texto}</p></div>
+          <div class="hero-acciones"><a class="btn" href="/custom-order">Pedir búsqueda</a><a class="btn contorno" href="/sell-your-car">Vender mi coche</a></div>
+        </div>
+      )}
+      {destacados.some((c) => (c.precio_oferta ?? c.precio) > 0) && <p class="nota-financiacion">{notaCuotas()}</p>}
+    </div>
+  </section>
+
+  <section data-editor-section="propuesta" class="seccion">
+    <div class="envoltorio">
+      <div class="bloque">
+        <div class="foto revela"><img src="/img-web/llaves.webp" alt="Entrega de las llaves de un coche" width="1280" height="720" loading="lazy" /></div>
+        <div class="texto revela">
+          <span class="antetitulo">{P.propuesta.antetitulo}</span>
+          <h2>{P.propuesta.titulo}</h2>
+          <p class="medido">{P.propuesta.texto}</p>
+          <ol class="pasos">
+            {P.propuesta.puntos.map((t) => <li><div><b>{t}</b></div></li>)}
+          </ol>
+          <div class="hero-acciones"><a class="btn grande" href="/sell-your-car">Pedir tasación</a><a class="btn grande contorno" href="/stock">Ver coches en stock</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-editor-section="servicios" class="seccion">
+    <div class="envoltorio">
+      <div class="titulo-seccion centrado revela">
+        <span class="antetitulo">{P.servicios.antetitulo}</span>
+        <h2>{P.servicios.titulo}</h2>
+      </div>
+      <div class="servicios revela">
+        {SERVICIOS.map((s) => (
+          <div class="servicio">
+            <div class="foto"><img src={s.foto} alt="" width="800" height="500" loading="lazy" /></div>
+            <h3>{s.enlace ? <a href={s.enlace} style="color:inherit;text-decoration:none">{s.titulo}</a> : s.titulo}</h3>
+            <p>{s.texto}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section data-lidi-pagina="financiacion" class="seccion">
+    <div class="envoltorio">
+      <div class="titulo-seccion revela"><div><span class="antetitulo">Financiación</span><h2>Calcula tu cuota</h2><p>Orientativa y sin compromiso. Opciones de crédito flexibles, con respuesta rápida.</p></div></div>
+      <div class="simulador revela" data-simulador>
+        <div>
+          <div class="deslizador">
+            <div class="valor"><span>Importe</span><output data-valor-importe>{eurosMiles(IMPORTE_POR_DEFECTO)}</output></div>
+            <input type="range" name="importe" min="3000" max="60000" step="500" value={IMPORTE_POR_DEFECTO} aria-label="Importe a financiar" />
+          </div>
+          <div class="deslizador">
+            <div class="valor"><span>Plazo</span><output data-valor-plazo>{PLAZO_POR_DEFECTO} meses</output></div>
+            <input type="range" name="plazo" min="12" max="120" step="12" value={PLAZO_POR_DEFECTO} aria-label="Plazo en meses" />
+          </div>
+          <a class="btn grande" href="/finance">Pedir financiación</a>
+        </div>
+        <div class="cuota-grande"><small>Cuota mensual estimada</small><strong data-cuota>—</strong><small>TIN {porcentaje(TIN)} % · TAE desde {porcentaje(TAE)} % · sujeta a aprobación de la entidad financiera</small></div>
+      </div>
+    </div>
+  </section>
+
+  <section data-editor-section="importacion" class="llamada">
+    <div class="fondo"><img src="/img-web/importacion.webp" alt="" width="1280" height="720" loading="lazy" /></div>
+    <div class="envoltorio revela">
+      <span class="antetitulo">{P.importacion.antetitulo}</span>
+      <h2>{P.importacion.titulo}</h2>
+      <p>{P.importacion.texto}</p>
+      <div class="hero-acciones"><a class="btn grande claro" href="/custom-order">Encargar mi coche</a><a class="btn grande contorno" href="/sell-your-car">Vender mi coche</a></div>
+    </div>
+  </section>
+
+  <section data-editor-section="nosotros" class="seccion sin-borde">
+    <div class="envoltorio nosotros">
+      <div class="revela">
+        <span class="antetitulo">{P.nosotros.antetitulo}</span>
+        <h2>{P.nosotros.titulo}</h2>
+        {P.nosotros.parrafos.map((t, i) => <p style={i === 0 ? 'margin-top:20px' : undefined}>{t}</p>)}
+        <a class="btn contorno" href="/contact">Conócenos mejor</a>
+      </div>
+      <img class="revela" src="/img-web/nosotros.webp" alt="" width="1280" height="720" loading="lazy" />
+    </div>
+  </section>
+
+  <Faq preguntas={PREGUNTAS} titulo="Preguntas frecuentes" />
+
+  <section class="seccion">
+    <div class="envoltorio contacto">
+      <div class="datos-contacto revela">
+        <span class="antetitulo">Contacto</span>
+        <h2>Hablemos de tu próximo coche</h2>
+        <div><small>Zona</small><a href={MAPA} target="_blank" rel="noopener">{DIRECCION}</a></div>
+        <div><small>Horario</small><span>{HORARIO}</span></div>
+        <div><small>Teléfono y WhatsApp</small><a href={`tel:${TELEFONO}`}>{TELEFONO_BONITO}</a></div>
+        <div><small>Email</small><a href={`mailto:${EMAIL}`}>{EMAIL}</a></div>
+        <div><a class="btn wa" href={WHATSAPP} target="_blank" rel="noopener">Escríbenos por WhatsApp</a></div>
+      </div>
+      <div class="revela">
+        <h3 style="margin-bottom:16px">¿Tienes una duda rápida?</h3>
+        <form class="formulario" data-formulario="contacto" data-exito="Mensaje enviado. Te contestamos en cuanto podamos." novalidate>
+          <input type="hidden" name="formulario" value="contacto" />
+          <input type="hidden" name="asunto" value="Mensaje de contacto" />
+          <input class="honeypot" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <div class="fila">
+            <label>Nombre<input type="text" name="nombre" required autocomplete="name" /></label>
+            <label>Teléfono o email<input type="text" name="telefono" required autocomplete="tel" /></label>
+          </div>
+          <label>Mensaje<textarea name="mensaje" required></textarea></label>
+          <button class="btn grande" type="submit">Enviar</button>
+          <p class="nota privacidad">{NOTA_PRIVACIDAD} <button type="button" class="enlace-legal" data-abrir="privacidad">Política de privacidad</button></p>
+        </form>
+      </div>
+    </div>
+  </section>
+</Marco>

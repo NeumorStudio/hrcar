@@ -1,0 +1,113 @@
+---
+// Inventario: los coches en stock (también los ocultos) y los últimos vendidos. Los vendidos antiguos,
+// en «Ver todos los vendidos» de 60 en 60, con buscador: así la página no crece aunque haya cientos.
+import Admin from '../../layouts/Admin.astro';
+import { listarEnStock, listarVendidos, contarPorEstado, ESTADOS } from '../../lib/datos.js';
+import { llanoBusqueda, coincide } from '../../lib/crm.js';
+import { fotoMini } from '../../lib/plantillas.js';
+import { euros, subtitulo, tieneFotos, SIN_FOTO } from '../../lib/formato.js';
+import { tituloLimpio } from '../../lib/nombres.js';
+const db = Astro.locals.runtime.env.DB;
+const q = Astro.url.searchParams;
+const soloVendidos = q.get('vendidos') === '1';
+const busqueda = (q.get('q') || '').trim().slice(0, 80);
+const pagina = Math.max(1, Math.floor(Number(q.get('pagina'))) || 1);
+const POR_PAGINA = 60;
+const ULTIMOS_VENDIDOS = 24;
+const cuentas = await contarPorEstado(db);
+const cuenta = (e) => cuentas[e] ?? 0;
+const total = Object.values(cuentas).reduce((a, n) => a + n, 0);
+const textoCoche = (c) => `${c.titulo} ${c.marca || ''} ${c.modelo || ''} ${c.matricula || ''} ${c.anio || ''} ${c.color || ''}`;
+let coches = [];
+let paginas = 1;
+let encontrados = 0;
+if (soloVendidos) {
+  if (busqueda) {
+    const todos = (await listarVendidos(db, 5000)).filter((c) => coincide(textoCoche(c), busqueda));
+    encontrados = todos.length;
+    paginas = Math.max(1, Math.ceil(todos.length / POR_PAGINA));
+    coches = todos.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  } else {
+    coches = await listarVendidos(db, POR_PAGINA, (pagina - 1) * POR_PAGINA);
+    paginas = Math.max(1, Math.ceil(cuenta('Vendido') / POR_PAGINA));
+  }
+} else {
+  const [enStock, vendidos] = await Promise.all([listarEnStock(db), listarVendidos(db, ULTIMOS_VENDIDOS)]);
+  coches = [...enStock, ...vendidos];
+}
+const hayVendidosSinCargar = !soloVendidos && cuenta('Vendido') > ULTIMOS_VENDIDOS;
+const enlacePagina = (n) => `/admin/inventario?vendidos=1${busqueda ? `&q=${encodeURIComponent(busqueda)}` : ''}${n > 1 ? `&pagina=${n}` : ''}`;
+---
+<Admin titulo="Inventario" seccion="inventario">
+  <div class="fila-titulo">
+    <div>
+      <h1>{soloVendidos ? 'Coches vendidos' : 'Inventario'}</h1>
+      <p class="suave">{total} vehículos · {cuenta('Disponible')} disponibles · {cuenta('Vendido')} vendidos{cuenta('Oculto') > 0 && ` · ${cuenta('Oculto')} ocultos`}</p>
+    </div>
+    {soloVendidos ? <a class="boton secundario" href="/admin/inventario">Volver al inventario</a> : <a class="boton" href="/admin/coche/nuevo">+ Añadir vehículo</a>}
+  </div>
+
+  {soloVendidos ? (
+    <form class="barra" method="get" action="/admin/inventario">
+      <input type="hidden" name="vendidos" value="1" />
+      <input type="search" name="q" value={busqueda} placeholder="Buscar entre todos los vendidos…" aria-label="Buscar entre los vendidos" />
+      <button class="boton secundario" type="submit">Buscar</button>
+    </form>
+  ) : (
+    <div class="barra">
+      <input type="search" placeholder="Buscar por marca, modelo, matrícula…" data-buscar aria-label="Buscar" />
+      <div class="pestanas" data-pestanas>
+        <button type="button" class="activa" data-estado="">Todos</button>
+        {ESTADOS.filter((e) => e !== 'Oculto' || cuenta('Oculto') > 0).map((e) => <button type="button" data-estado={e}>{e} ({cuenta(e)})</button>)}
+      </div>
+    </div>
+  )}
+
+  {coches.length === 0 && <div class="caja vacio">{soloVendidos ? (busqueda ? `Ningún coche vendido coincide con «${busqueda}».` : 'Todavía no hay coches vendidos.') : 'Todavía no hay coches. Pulsa «Añadir vehículo».'}</div>}
+  {soloVendidos && busqueda && encontrados > 0 && <p class="suave">{encontrados} {encontrados === 1 ? 'coche encontrado' : 'coches encontrados'}.</p>}
+
+  <div class="lista-coches" data-lista>
+    {coches.map((c) => (
+      <article class={`coche ${c.estado === 'Vendido' ? 'vendido' : ''} ${c.estado === 'Oculto' ? 'oculto-web' : ''}`} data-coche={c.slug} data-estado={c.estado} data-precio={c.precio_oferta ?? c.precio} data-texto={llanoBusqueda(textoCoche(c))}>
+        <div class="foto">
+          <img src={fotoMini(tieneFotos(c) ? c.fotos[0] : SIN_FOTO)} alt="" loading="lazy" />
+          <div class="chips">
+            <span class={`chip ${c.estado}`} data-chip>{c.estado}</span>
+            {c.precio_oferta != null && <span class="chip oferta">Oferta</span>}
+          </div>
+        </div>
+        <div class="cuerpo">
+          <h3>{tituloLimpio(c)}</h3>
+          <div class="suave">{subtitulo(c)}{c.matricula && ` · ${c.matricula}`}</div>
+          <div class="precio">
+            {c.precio_oferta != null && <s>{euros(c.precio)}</s>}
+            {(c.precio_oferta ?? c.precio) > 0 ? euros(c.precio_oferta ?? c.precio) : 'Sin precio'}
+            {c.precio_financiado != null && <span class="suave"> · financiado {euros(c.precio_financiado)}</span>}
+          </div>
+          <div class="acciones">
+            <select aria-label="Estado" data-cambiar-estado>
+              {ESTADOS.map((e) => <option value={e} selected={e === c.estado}>{e}</option>)}
+            </select>
+            <a class="boton secundario pequeno" href={`/admin/coche/${c.slug}`}>Editar</a>
+            {c.estado !== 'Oculto' && <a class="boton secundario pequeno" href={`/stock/${c.slug}`} target="_blank" rel="noopener" data-ver-web>Ver</a>}
+          </div>
+        </div>
+      </article>
+    ))}
+  </div>
+  <div class="caja vacio sin-resultados" data-sin-resultados hidden>
+    <p style="margin:0">Ningún coche coincide con «<span data-texto-buscado></span>».</p>
+    {hayVendidosSinCargar && <p style="margin:10px 0 0"><a href="/admin/inventario?vendidos=1" data-buscar-vendidos>Buscar también en todos los vendidos</a></p>}
+  </div>
+
+  {hayVendidosSinCargar && (
+    <p class="paginas" data-mas-vendidos><a class="boton secundario" href="/admin/inventario?vendidos=1">Ver todos los vendidos ({cuenta('Vendido')})</a></p>
+  )}
+  {soloVendidos && paginas > 1 && (
+    <nav class="paginas" aria-label="Páginas">
+      {pagina > 1 && <a class="boton secundario pequeno" href={enlacePagina(pagina - 1)}>← Anteriores</a>}
+      <span class="suave">Página {pagina} de {paginas}</span>
+      {pagina < paginas && <a class="boton secundario pequeno" href={enlacePagina(pagina + 1)}>Siguientes →</a>}
+    </nav>
+  )}
+</Admin>

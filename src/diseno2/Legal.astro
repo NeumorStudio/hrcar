@@ -1,0 +1,13 @@
+---
+// Textos legales (src/lib/legal.js, los mismos en los dos diseños), en ventanas que abre el pie.
+import { LEGALES as textos } from '../lib/legal.js';
+---
+{textos.map(([id, titulo, parrafos]) => (
+  <dialog class="legal" id={`legal-${id}`} aria-labelledby={`legal-${id}-titulo`}>
+    <div class="interior">
+      <form method="dialog" class="cerrar"><button class="btn contorno" type="submit">Cerrar</button></form>
+      <h2 id={`legal-${id}-titulo`}>{titulo}</h2>
+      {parrafos.map(([sub, texto]) => (<>{sub && <h3>{sub}</h3>}<p>{texto}</p></>))}
+    </div>
+  </dialog>
+))}

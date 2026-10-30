@@ -1,0 +1,198 @@
+---
+import { NEGOCIO } from '../negocio.js';
+// Alta y edición de un vehículo en 5 pasos, como el asistente de Arbicars al que el dueño está acostumbrado:
+// Identificación → Datos del anuncio → Datos internos → Imágenes → Precio.
+// Al editar, «Guardar cambios» está siempre abajo, en cualquier paso (para cambiar solo el precio, por ejemplo).
+import { ESTADOS, TIPOS } from '../lib/datos.js';
+import { fotoUrl, fotoMini } from '../lib/plantillas.js';
+import { precioFinal } from '../lib/formato.js';
+interface Props { coche: any | null; marcas: string[]; modelos: string[]; base?: any | null; venta?: any | null }
+const { coche, marcas, modelos, base = null, venta = null } = Astro.props;
+const q = Astro.url.searchParams;
+const texto = (k) => (q.get(k) || '').slice(0, 120) || undefined;
+// coche nuevo: vacío, con lo que llegue de la calculadora (?titulo=…) o copiado de otro («Duplicar»)
+const c = coche ?? (base ? {
+  tipo: base.tipo, marca: base.marca, modelo: base.modelo, version: base.version, combustible: base.combustible, potencia_cv: base.potencia_cv,
+  carroceria: base.carroceria, puertas: base.puertas, cambio: base.cambio, anio: base.anio, color: base.color, etiqueta_dgt: base.etiqueta_dgt,
+  garantia_meses: base.garantia_meses, ubicacion: base.ubicacion, descripcion: base.descripcion, precio: base.precio,
+  precio_financiado: base.precio_financiado, reservable: base.reservable,
+} : {
+  titulo: texto('titulo'), marca: texto('marca'), modelo: texto('modelo'), version: texto('version'), combustible: texto('combustible'),
+  cambio: ['Manual', 'Automático'].includes(q.get('cambio')) ? q.get('cambio') : undefined,
+  potencia_cv: Number(q.get('potencia_cv')) || undefined, anio: Number(q.get('anio')) || undefined, km: Number(q.get('km')) || undefined,
+  precio: Number(q.get('precio_venta')) || undefined, coste: Number(q.get('precio_compra')) || undefined,
+});
+const nuevo = !coche;
+const v = (campo) => (c[campo] ?? '');
+const fotos = (c.fotos ?? []).filter((f) => f !== 'covered-car.webp');
+const anioActual = new Date().getFullYear();
+const MARCAS = [...new Set([...marcas, 'Abarth', 'Alfa Romeo', 'Audi', 'BMW', 'BYD', 'Citroën', 'Cupra', 'Dacia', 'DS', 'Fiat', 'Ford', 'Honda', 'Hyundai', 'Jaguar', 'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Renault', 'SEAT', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo'])].sort();
+const COMBUSTIBLES = ['Gasolina', 'Diésel', 'Híbrido gasolina', 'Híbrido diésel', 'Híbrido enchufable', 'Eléctrico', 'GLP', 'GNC'];
+const CARROCERIAS = ['Berlina', '4x4 SUV', 'Familiar', 'Compacto', 'Monovolumen', 'Coupé', 'Cabrio', 'Furgoneta', 'Pick-up', 'Todoterreno'];
+const ETIQUETAS = [['', 'Sin etiqueta'], ['0', '0 emisiones'], ['ECO', 'ECO'], ['C', 'C'], ['B', 'B']];
+const PASOS = ['Identificación', 'Datos del anuncio', 'Datos internos', 'Imágenes', 'Precio y estado'];
+const AYUDA_ESTADO: Record<string, string> = {
+  Disponible: 'Sale en la web y se puede reservar.',
+  'Próximamente': 'Sale en la web como «Próximamente» (aún no está listo para la venta).',
+  Reservado: 'Sale en la web como reservado; no admite más pre-reservas.',
+  Vendido: 'Sale con el sello VENDIDO y pasa a «Últimas entregas». Se apunta en Ventas.',
+  Oculto: 'No sale en la web. Para prepararlo con calma o retirarlo un tiempo sin borrarlo.',
+};
+const fecha = (f) => (f ? f.split('-').reverse().join('/') : '');
+const MAX_FOTOS = 20;
+---
+<form class="formulario-coche" data-formulario-coche data-api={nuevo ? '/api/admin/coches' : `/api/admin/coches/${c.slug}`} data-metodo={nuevo ? 'POST' : 'PUT'} data-estado-inicial={nuevo ? '' : c.estado} data-actualizado={nuevo ? '' : (c.actualizado ?? '')} data-max-fotos={MAX_FOTOS} novalidate>
+  <div class="caja aviso-borrador" data-borrador hidden>
+    <strong>Tienes cambios sin guardar</strong> <span class="suave" data-borrador-cuando></span>
+    <p class="suave" style="margin:6px 0 0">Se guardaron en este móvil u ordenador antes de salir de la página.</p>
+    <div class="botonera"><button type="button" class="boton" data-borrador-recuperar>Recuperar los cambios</button><button type="button" class="boton secundario" data-borrador-descartar>Descartar</button></div>
+  </div>
+
+  <div class="pasos" role="tablist">
+    {PASOS.map((nombre, i) => (
+      <button type="button" role="tab" data-ir-paso={i + 1} class={i === 0 ? 'activo' : ''} aria-selected={i === 0 ? 'true' : 'false'}><b><span class="palabra-paso">Paso </span>{i + 1}</b><span class="nombre-paso">{nombre}</span></button>
+    ))}
+  </div>
+
+  <section class="caja" data-paso="1">
+    <h2>Identificación</h2>
+    <div class="etiqueta">Tipo de vehículo</div>
+    <div class="opciones" style="margin-bottom:14px">
+      {TIPOS.map((t) => <label><input type="radio" name="tipo" value={t} checked={(c.tipo ?? 'Ocasión') === t} />{t}</label>)}
+    </div>
+    <div class="dos">
+      <label class="campo"><span>Marca *</span><input type="text" name="marca" list="lista-marcas" value={v('marca')} required autocomplete="off" /></label>
+      <label class="campo"><span>Modelo *</span><input type="text" name="modelo" list="lista-modelos" value={v('modelo')} required autocomplete="off" /></label>
+    </div>
+    <datalist id="lista-marcas">{MARCAS.map((m) => <option value={m} />)}</datalist>
+    <datalist id="lista-modelos">{modelos.map((m) => <option value={m} />)}</datalist>
+    <label class="campo"><span>Versión <span class="nota">(p. ej. «Advanced 1.6 TDI 85kW (116 CV) S tronic»)</span></span><input type="text" name="version" value={v('version')} /></label>
+    <div class="tres">
+      <label class="campo"><span>Año *</span><input type="number" name="anio" min="1980" max={anioActual + 1} value={v('anio')} required inputmode="numeric" /></label>
+      <label class="campo"><span>Combustible *</span><input type="text" name="combustible" list="lista-combustibles" value={v('combustible')} required autocomplete="off" /></label>
+      <label class="campo"><span>Potencia (CV)</span><input type="number" name="potencia_cv" min="1" max="2000" value={v('potencia_cv')} inputmode="numeric" /></label>
+    </div>
+    <datalist id="lista-combustibles">{COMBUSTIBLES.map((m) => <option value={m} />)}</datalist>
+    <div class="tres">
+      <label class="campo"><span>Carrocería</span><input type="text" name="carroceria" list="lista-carrocerias" value={v('carroceria')} autocomplete="off" /></label>
+      <label class="campo"><span>Puertas</span>
+        <select name="puertas"><option value="">—</option>{[2, 3, 4, 5].map((p) => <option value={p} selected={c.puertas === p}>{p}</option>)}</select>
+      </label>
+      <label class="campo"><span>Cambio *</span>
+        <select name="cambio" required><option value="">Elige…</option>{['Manual', 'Automático'].map((p) => <option value={p} selected={c.cambio === p}>{p}</option>)}</select>
+      </label>
+    </div>
+    <datalist id="lista-carrocerias">{CARROCERIAS.map((m) => <option value={m} />)}</datalist>
+    <div class="pie-pasos"><span></span><button type="button" class="boton" data-siguiente>Siguiente →</button></div>
+  </section>
+
+  <section class="caja" data-paso="2" hidden>
+    <h2>Datos del anuncio</h2>
+    <label class="campo"><span>Título del anuncio <span class="nota">(se rellena solo con marca, modelo y versión)</span></span><input type="text" name="titulo" value={v('titulo')} data-titulo-auto={nuevo ? '1' : ''} /></label>
+    <div class="tres">
+      <label class="campo"><span>Kilómetros *</span><input type="number" name="km" min="0" max="2000000" value={v('km')} required inputmode="numeric" /></label>
+      <label class="campo"><span>Color</span><input type="text" name="color" value={v('color')} /></label>
+      <label class="campo"><span>Etiqueta DGT</span>
+        <select name="etiqueta_dgt">{ETIQUETAS.map(([val, texto]) => <option value={val} selected={(c.etiqueta_dgt ?? '') === val}>{texto}</option>)}</select>
+      </label>
+    </div>
+    <div class="dos">
+      <label class="campo"><span>Garantía (meses)</span><input type="number" name="garantia_meses" min="0" max="120" value={c.garantia_meses ?? ''} inputmode="numeric" /></label>
+      <label class="campo"><span>Ubicación</span><input type="text" name="ubicacion" value={c.ubicacion ?? NEGOCIO.localidad} /></label>
+    </div>
+    <label class="campo"><span>Descripción <span class="nota">(opcional, sale en la ficha)</span></span><textarea name="descripcion">{v('descripcion')}</textarea></label>
+    <div class="pie-pasos"><button type="button" class="boton secundario" data-atras>← Atrás</button><button type="button" class="boton" data-siguiente>Siguiente →</button></div>
+  </section>
+
+  <section class="caja" data-paso="3" hidden>
+    <h2>Datos internos</h2>
+    <p class="suave">Nada de esto se publica en la web.</p>
+    <div class="dos">
+      <label class="campo"><span>Matrícula</span><input type="text" name="matricula" value={v('matricula')} style="text-transform:uppercase" autocomplete="off" /></label>
+      <label class="campo"><span>Precio de compra (€)</span><input type="number" name="coste" min="0" value={v('coste')} inputmode="numeric" /></label>
+    </div>
+    <label class="campo"><span>Notas</span><textarea name="notas" placeholder="Proveedor, reparaciones, documentación pendiente…">{v('notas')}</textarea></label>
+    <div class="pie-pasos"><button type="button" class="boton secundario" data-atras>← Atrás</button><button type="button" class="boton" data-siguiente>Siguiente →</button></div>
+  </section>
+
+  <section class="caja" data-paso="4" hidden>
+    <h2>Imágenes</h2>
+    <p class="suave">La primera foto es la portada. Puedes hacerlas con la cámara del móvil; se reducen solas antes de subir. Si quitas una foto, no se borra hasta que guardes.</p>
+    <label class="subir">
+      <input type="file" accept="image/*" multiple data-subir-fotos />
+      <span class="boton secundario">📷 Añadir fotos</span>
+      <div class="suave" style="margin-top:8px">Hasta {MAX_FOTOS} fotos por coche</div>
+    </label>
+    <div class="desde-enlace" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 0">
+      <input type="url" placeholder="o pega el enlace de una foto (de un anuncio, por ejemplo)" data-foto-enlace style="flex:1;min-width:220px" />
+      <button type="button" class="boton secundario pequeno" data-foto-enlace-boton>Traer foto</button>
+    </div>
+    <p class="progreso-fotos" data-progreso-fotos aria-live="polite" hidden></p>
+    <p class="cuenta-fotos" data-cuenta-fotos>{fotos.length} de {MAX_FOTOS} fotos</p>
+    <div class="galeria" data-galeria-admin>
+      {fotos.map((f, i) => (
+        <figure class={i === 0 ? 'portada' : ''} data-foto={f}>
+          <img src={fotoMini(f)} data-grande={fotoUrl(f)} alt="" loading="lazy" />
+          {i === 0 && <span class="portada-etiqueta">PORTADA</span>}
+          <div class="mandos"><button type="button" data-mover="-1" aria-label="Mover antes" title="Mover antes">◀</button><button type="button" data-portada aria-label="Hacer portada" title="Hacer portada">★</button><button type="button" data-quitar aria-label="Quitar foto" title="Quitar foto">✕</button><button type="button" data-mover="1" aria-label="Mover después" title="Mover después">▶</button></div>
+        </figure>
+      ))}
+    </div>
+    <div class="pie-pasos"><button type="button" class="boton secundario" data-atras>← Atrás</button><button type="button" class="boton" data-siguiente>Siguiente →</button></div>
+  </section>
+
+  <section class="caja" data-paso="5" hidden>
+    <h2>Precio y estado</h2>
+    <div class="dos">
+      <label class="campo"><span>Precio al contado (€) *</span><input type="number" name="precio" min="0" value={v('precio')} required inputmode="numeric" /></label>
+      <label class="campo"><span>Precio financiado (€) <span class="nota">(opcional)</span></span><input type="number" name="precio_financiado" min="0" value={v('precio_financiado')} inputmode="numeric" /></label>
+    </div>
+    <label class="interruptor"><input type="checkbox" name="en_oferta" checked={c.precio_oferta != null} data-activa="precio_oferta" /> <span>En oferta (el precio normal sale tachado)</span></label>
+    <label class="campo" data-depende="precio_oferta" hidden={c.precio_oferta == null}><span>Precio de oferta (€)</span><input type="number" name="precio_oferta" min="0" value={v('precio_oferta')} inputmode="numeric" /></label>
+    <label class="interruptor"><input type="checkbox" name="reservable" checked={c.reservable !== false} /> <span>Permitir pre-reserva de 100 € desde la web</span></label>
+    <div class="etiqueta">Estado</div>
+    <div class="opciones" style="margin-bottom:14px" data-estados>
+      {ESTADOS.map((e) => <label><input type="radio" name="estado" value={e} checked={(c.estado ?? 'Disponible') === e} />{e}</label>)}
+    </div>
+    <p class="suave nota-estado" data-ayuda-estado>{AYUDA_ESTADO[c.estado ?? 'Disponible']}</p>
+    <script type="application/json" data-ayudas-estado set:html={JSON.stringify(AYUDA_ESTADO)} />
+
+    {/* vender desde aquí apunta la venta igual que desde el inventario */}
+    {!venta && (
+      <div class="caja-venta" data-caja-venta hidden>
+        <h3>Datos de la venta</h3>
+        <div class="dos">
+          <label class="campo"><span>Precio de venta (€) *</span><input type="number" min="0" inputmode="numeric" data-venta-precio value={precioFinal(c) || ''} /></label>
+          <label class="campo"><span>Comprador <span class="nota">(opcional)</span></span><input type="text" data-venta-comprador autocomplete="off" /></label>
+        </div>
+        <p class="suave" style="margin:0">Se apunta en Ventas con la fecha de hoy y el precio de compra de este coche.</p>
+      </div>
+    )}
+    {venta && (
+      <label class="interruptor caja-venta" data-quitar-venta-caja hidden><input type="checkbox" data-quitar-venta checked /> <span>Quitar también su venta del registro ({new Intl.NumberFormat('es-ES').format(venta.precio_venta)} € del {fecha(venta.fecha)}). Déjalo marcado si la venta no siguió adelante.</span></label>
+    )}
+
+    <input type="hidden" name="fotos_json" value={JSON.stringify(fotos)} data-fotos-json />
+    <div class="pie-pasos">
+      <button type="button" class="boton secundario" data-atras>← Atrás</button>
+      {nuevo && <button type="submit" class="boton" data-publicar>Publicar vehículo</button>}
+    </div>
+  </section>
+
+  {!nuevo && (
+    <div class="barra-guardar" data-barra-guardar>
+      <span class="estado-guardar" data-estado-guardar>Sin cambios</span>
+      <button type="submit" class="boton">Guardar cambios</button>
+    </div>
+  )}
+
+  {!nuevo && (
+    <div class="botonera" style="justify-content:space-between;margin-top:16px">
+      <div class="botonera">
+        <button type="button" class="boton secundario pequeno" data-subir-principio>Poner el primero en el listado</button>
+        <a class="boton secundario pequeno" href={`/admin/coche/nuevo?desde=${encodeURIComponent(c.slug)}`}>Duplicar (alta de uno parecido)</a>
+      </div>
+      <button type="button" class="boton peligro pequeno" data-borrar-coche>Eliminar vehículo</button>
+    </div>
+  )}
+</form>

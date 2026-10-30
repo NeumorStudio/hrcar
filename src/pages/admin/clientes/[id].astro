@@ -1,0 +1,60 @@
+---
+import { NEGOCIO } from '../../../negocio.js';
+import Admin from '../../../layouts/Admin.astro';
+import { obtenerCliente, telWhatsApp } from '../../../lib/crm.js';
+import { euros } from '../../../lib/formato.js';
+const c = await obtenerCliente(Astro.locals.runtime.env.DB, Number(Astro.params.id));
+if (!c) return Astro.redirect('/admin/clientes');
+const tel = (t) => (t || '').replace(/[^\d+]/g, '');
+const wa = telWhatsApp(c.telefono);
+const primerNombre = (c.nombre || '').trim().split(/\s+/)[0];
+const textoWa = `Hola${primerNombre ? ` ${primerNombre}` : ''}, te escribo de ${NEGOCIO.nombre}.`;
+const fechaCorta = (f) => (f ? f.slice(0, 10).split('-').reverse().join('/') : '');
+const fecha = (f) => new Date(f.replace(' ', 'T') + 'Z').toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+const NOMBRES = { contacto: 'Contacto', encargo: 'Encargo a medida', financiacion: 'Financiación', tasacion: 'Tasación', reserva: 'Pre-reserva', interes: 'Interés por un coche' };
+---
+<Admin titulo={c.nombre} seccion="clientes">
+  <div class="fila-titulo"><div><h1>{c.nombre}</h1><p class="suave">Cliente desde el {fechaCorta(c.creado)} · {c.origen === 'web' ? 'llegó por la web' : 'añadido a mano'}</p></div><a class="boton secundario" href="/admin/clientes">Volver</a></div>
+  <div class="botonera" style="margin-bottom:16px">
+    {c.telefono && <a class="boton" href={`tel:${tel(c.telefono)}`}>📞 Llamar</a>}
+    {wa && <a class="boton secundario" href={`https://wa.me/${wa}?text=${encodeURIComponent(textoWa)}`} target="_blank" rel="noopener">WhatsApp</a>}
+    {c.email && <a class="boton secundario" href={`mailto:${c.email}?subject=${encodeURIComponent(NEGOCIO.nombre)}`}>✉ Email</a>}
+  </div>
+  <div class="dos paneles">
+    <div class="caja">
+      <h2>Datos</h2>
+      <form data-api={`/api/admin/clientes/${c.id}`} data-metodo="PUT" data-aviso="Cliente guardado">
+        <label class="campo"><span>Nombre *</span><input type="text" name="nombre" value={c.nombre} required /></label>
+        <label class="campo"><span>Teléfono</span><input type="tel" name="telefono" value={c.telefono ?? ''} /></label>
+        <label class="campo"><span>Email</span><input type="email" name="email" value={c.email ?? ''} /></label>
+        <label class="campo"><span>Notas</span><textarea name="notas">{c.notas ?? ''}</textarea></label>
+        <div class="botonera" style="justify-content:space-between"><button class="boton" type="submit">Guardar</button><button type="button" class="boton peligro pequeno" data-borrar-api={`/api/admin/clientes/${c.id}`} data-ir="/admin/clientes" data-confirmar="¿Borrar este cliente? Sus mensajes se conservan.">Borrar</button></div>
+      </form>
+    </div>
+    <div class="caja">
+      <h2>Tareas</h2>
+      <form data-api="/api/admin/tareas" data-recargar>
+        <input type="hidden" name="cliente_id" value={c.id} />
+        <label class="campo"><span>Nueva tarea</span><input type="text" name="titulo" placeholder="Llamar, enviar fotos, avisar cuando llegue…" required /></label>
+        <div class="dos"><label class="campo"><span>Fecha</span><input type="date" name="fecha" /></label><label class="campo"><span>Hora</span><input type="time" name="hora" /></label></div>
+        <button class="boton secundario pequeno" type="submit">Añadir tarea</button>
+      </form>
+      {c.tareas.map((t) => (
+        <div class={`tarea ${t.hecha ? 'hecha' : ''}`} data-tarea={t.id}><label><input type="checkbox" data-hecha checked={!!t.hecha} /> <span class="titulo-tarea">{t.titulo}</span></label><span class="suave">{fechaCorta(t.fecha)}{t.hora && ` ${t.hora}`}</span></div>
+      ))}
+    </div>
+  </div>
+  <div class="caja">
+    <h2>Mensajes ({c.mensajes.length})</h2>
+    {c.mensajes.length === 0 && <p class="suave">Sin mensajes.</p>}
+    {c.mensajes.map((m) => (
+      <article class="mensaje">
+        <div class="cabecera-msg"><span class="tipo">{NOMBRES[m.formulario] || m.asunto}{m.coche && ` · ${m.coche}`}</span><span class="fecha">{fecha(m.fecha)}</span></div>
+        {(m.datos.mensaje || m.datos.message || m.datos.comments) && <p style="white-space:pre-wrap">{m.datos.mensaje || m.datos.message || m.datos.comments}</p>}
+      </article>
+    ))}
+  </div>
+  {c.ventas.length > 0 && (
+    <div class="caja"><h2>Compras</h2>{c.ventas.map((v) => <div class="tarea"><span>{v.titulo}</span><span class="suave">{fechaCorta(v.fecha)} · {euros(v.precio_venta)}</span></div>)}</div>
+  )}
+</Admin>

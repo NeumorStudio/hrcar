@@ -1,0 +1,17 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+---
+<Admin titulo="Nuevo cliente" seccion="clientes">
+  <div class="fila-titulo"><h1>Nuevo cliente</h1><a class="boton secundario" href="/admin/clientes">Cancelar</a></div>
+  <div class="caja">
+    <form data-api="/api/admin/clientes" data-ir="/admin/clientes">
+      <label class="campo"><span>Nombre *</span><input type="text" name="nombre" required /></label>
+      <div class="dos">
+        <label class="campo"><span>Teléfono</span><input type="tel" name="telefono" /></label>
+        <label class="campo"><span>Email</span><input type="email" name="email" /></label>
+      </div>
+      <label class="campo"><span>Notas</span><textarea name="notas" placeholder="Qué busca, presupuesto, cómo llegó…"></textarea></label>
+      <button class="boton" type="submit">Guardar</button>
+    </form>
+  </div>
+</Admin>

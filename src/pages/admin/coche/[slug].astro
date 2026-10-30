@@ -1,0 +1,16 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import FormularioCoche from '../../../components/FormularioCoche.astro';
+import { obtenerCoche, marcasYModelos } from '../../../lib/datos.js';
+import { ventaDeCoche } from '../../../lib/crm.js';
+import { tituloLimpio } from '../../../lib/nombres.js';
+const db = Astro.locals.runtime.env.DB;
+const coche = await obtenerCoche(db, Astro.params.slug);
+if (!coche) return Astro.redirect('/admin/inventario');
+const [{ marcas, modelos }, venta] = await Promise.all([marcasYModelos(db), coche.estado === 'Vendido' ? ventaDeCoche(db, coche.slug) : null]);
+const verWeb = coche.estado !== 'Oculto';
+---
+<Admin titulo={tituloLimpio(coche)} seccion="inventario">
+  <div class="fila-titulo"><div><h1>{tituloLimpio(coche)}</h1><p class="suave">Estado: <span class={`chip ${coche.estado}`}>{coche.estado}</span>{verWeb ? <> · <a href={`/stock/${coche.slug}`} target="_blank" rel="noopener">ver en la web ↗</a></> : ' · no sale en la web'}</p></div><a class="boton secundario" href="/admin/inventario">Volver</a></div>
+  <FormularioCoche coche={coche} marcas={marcas} modelos={modelos} venta={venta} />
+</Admin>

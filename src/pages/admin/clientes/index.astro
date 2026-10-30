@@ -1,0 +1,36 @@
+---
+// Clientes de 100 en 100 (los que se movieron hace menos, primero). El buscador busca en todos, sin importar tildes.
+import Admin from '../../../layouts/Admin.astro';
+import { listarClientes, llanoBusqueda } from '../../../lib/crm.js';
+const q = Astro.url.searchParams;
+const busqueda = (q.get('q') || '').trim().slice(0, 80);
+const pagina = Math.max(1, Math.floor(Number(q.get('pagina'))) || 1);
+const { clientes, total, paginas } = await listarClientes(Astro.locals.runtime.env.DB, { q: busqueda, pagina });
+const enlace = (n) => `/admin/clientes${n > 1 ? `?pagina=${n}` : ''}`;
+---
+<Admin titulo="Clientes" seccion="clientes">
+  <div class="fila-titulo"><div><h1>Clientes</h1><p class="suave">Se crean solos con cada mensaje de la web. También puedes añadirlos a mano.</p></div><a class="boton" href="/admin/clientes/nuevo">+ Nuevo cliente</a></div>
+  <form class="barra" method="get" action="/admin/clientes">
+    <input type="search" name="q" value={busqueda} placeholder="Buscar por nombre, teléfono o email…" data-buscar-lista aria-label="Buscar" />
+    <button class="boton secundario" type="submit">Buscar</button>
+    {busqueda && <a class="boton secundario" href="/admin/clientes">Ver todos</a>}
+  </form>
+  {busqueda && <p class="suave">{total === 0 ? `Ningún cliente coincide con «${busqueda}».` : `${total} ${total === 1 ? 'cliente encontrado' : 'clientes encontrados'}${total > clientes.length ? ` (se muestran ${clientes.length}; afina la búsqueda)` : ''}.`}</p>}
+  {!busqueda && clientes.length === 0 && <div class="caja vacio">Aún no hay clientes.</div>}
+  <div class="lista-clientes" data-lista-filtrable>
+    {clientes.map((c) => (
+      <a class="cliente" href={`/admin/clientes/${c.id}`} data-texto={llanoBusqueda(`${c.nombre} ${c.telefono || ''} ${(c.telefono || '').replace(/\D/g, '')} ${c.email || ''}`)}>
+        <div><strong>{c.nombre}</strong><div class="suave">{[c.telefono, c.email].filter(Boolean).join(' · ') || 'sin contacto'}</div></div>
+        <div class="suave contadores">{c.mensajes > 0 && <span title="Mensajes">✉ {c.mensajes}</span>}{c.tareas > 0 && <span title="Tareas pendientes">☐ {c.tareas}</span>}{c.ventas > 0 && <span title="Compras">🚗 {c.ventas}</span>}</div>
+      </a>
+    ))}
+  </div>
+  <div class="caja vacio sin-resultados" data-sin-resultados hidden>Ninguno de estos coincide. Pulsa «Buscar» para buscar en todos los clientes.</div>
+  {!busqueda && paginas > 1 && (
+    <nav class="paginas" aria-label="Páginas">
+      {pagina > 1 && <a class="boton secundario pequeno" href={enlace(pagina - 1)}>← Anteriores</a>}
+      <span class="suave">Página {pagina} de {paginas} · {total} clientes</span>
+      {pagina < paginas && <a class="boton secundario pequeno" href={enlace(pagina + 1)}>Siguientes →</a>}
+    </nav>
+  )}
+</Admin>

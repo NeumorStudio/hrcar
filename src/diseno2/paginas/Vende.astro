@@ -1,0 +1,48 @@
+---
+// Vende tu coche: tasación con fotos.
+import Marco from '../Marco.astro';
+import Faq from '../Faq.astro';
+import Formulario from '../Formulario.astro';
+import { VENDE } from '../contenido.js';
+import { NEGOCIO } from '../../negocio.js';
+const preguntas = VENDE.preguntas;
+---
+<Marco pagina="vende" title={`Vende tu coche: tasación gratis | ${NEGOCIO.nombre} ${NEGOCIO.localidad}`} description="Tasa tu coche gratis y consigue la mejor oferta. Valoración en menos de 24 horas laborables y nos encargamos de todo el proceso.">
+  <section class="seccion" style="padding-bottom:0">
+    <div class="envoltorio bloque">
+      <img src="/img-web/llaves.webp" alt="Entrega de las llaves de un coche" width="1280" height="720" fetchpriority="high" />
+      <div class="texto">
+        <h1 style="font-size:clamp(2.4rem,6vw,4rem)">{VENDE.h1}</h1>
+        <p class="medido">{VENDE.texto}</p>
+        <div><a class="btn grande" href="#tasar">Pedir tasación</a></div>
+      </div>
+    </div>
+  </section>
+  <section class="seccion blanca" id="tasar">
+    <div class="envoltorio" style="max-width:760px">
+      <h2 style="margin-bottom:8px">Datos de tu coche</h2>
+      <p class="intro" style="color:var(--suave);margin-bottom:18px">Con esto te damos una primera valoración. Las fotos ayudan mucho (exterior, interior y cuadro con los kilómetros).</p>
+      <Formulario tipo="tasacion" asunto="Tasación de vehículo" boton="Pedir tasación" fotos={true} exito="Recibido. Te mandamos la valoración en menos de 24 horas.">
+        <Fragment slot="antes">
+          <div class="opciones-tipo" role="radiogroup" aria-label="Tipo de vehículo">
+            <label><input type="radio" name="tipo" value="Turismo / 4x4" checked />Turismo / 4x4</label>
+            <label><input type="radio" name="tipo" value="Furgoneta / Industrial" />Furgoneta / Industrial</label>
+          </div>
+          <div class="fila">
+            <label>Marca<input type="text" name="make" required /></label>
+            <label>Modelo<input type="text" name="model" required /></label>
+          </div>
+          <div class="fila">
+            <label>Año<input type="number" name="year" min="1980" max={new Date().getFullYear() + 1} required /></label>
+            <label>Kilómetros<input type="number" name="mileage" min="0" step="1000" required /></label>
+          </div>
+          <div class="fila">
+            <label>Combustible<select name="fuel"><option>Gasolina</option><option>Diésel</option><option>Híbrido</option><option>Híbrido enchufable</option><option>Eléctrico</option></select></label>
+            <label>Cambio<select name="transmission"><option>Manual</option><option>Automático</option></select></label>
+          </div>
+        </Fragment>
+      </Formulario>
+    </div>
+  </section>
+  <Faq preguntas={preguntas} />
+</Marco>

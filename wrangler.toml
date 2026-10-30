@@ -1,0 +1,15 @@
+# Solo para probar en local con `wrangler pages dev dist`. En Cloudflare, las mismas
+# vinculaciones (DB y FOTOS) se configuran en el proyecto de Pages.
+name = "hrcar"
+compatibility_date = "2026-06-01"
+compatibility_flags = []
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hrcar"
+database_id = "local"
+
+[[kv_namespaces]]
+binding = "FOTOS"
+id = "local"

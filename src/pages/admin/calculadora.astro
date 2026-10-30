@@ -1,0 +1,81 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { listarCalculos } from '../../lib/crm.js';
+import { ajuste } from '../../lib/datos.js';
+import { COSTES_POR_DEFECTO, TRAMOS_CO2 } from '../../lib/importacion.js';
+import { euros } from '../../lib/formato.js';
+const db = Astro.locals.runtime.env.DB;
+const costes = { ...COSTES_POR_DEFECTO, ...JSON.parse((await ajuste(db, 'costes')) || '{}') };
+const guardados = await listarCalculos(db);
+---
+<Admin titulo="Calculadora de importación" seccion="calculadora">
+  <div class="fila-titulo"><div><h1>Calculadora</h1><p class="suave">Pega el anuncio de un coche y mira cuánto te cuesta puesto en España y qué margen te deja.</p></div></div>
+  <div class="caja">
+    <form data-importar-anuncio class="form-tarea">
+      <label class="campo" style="flex:1;min-width:240px"><span>Enlace del anuncio (Wallapop, coches.net, AutoScout24…; mobile.de no deja leerlos)</span><input type="url" name="url" placeholder="https://…" /></label>
+      <button class="boton secundario" type="submit">Leer anuncio</button>
+    </form>
+    <p class="suave" data-importar-aviso hidden></p>
+  </div>
+  <form data-calculadora data-costes={JSON.stringify(costes)} data-tramos={JSON.stringify(TRAMOS_CO2)}>
+    <div class="dos paneles">
+      <div class="caja">
+        <h2>El coche</h2>
+        <label class="campo"><span>Título</span><input type="text" name="titulo" placeholder="Marca, modelo y versión" /></label>
+        {/* Datos que se leen del anuncio y pasan al alta del coche (no se muestran aquí) */}
+        {['marca', 'modelo', 'version', 'combustible', 'cambio', 'potencia_cv'].map((k) => <input type="hidden" name={k} />)}
+        <div class="etiqueta">Dónde está</div>
+        <div class="opciones" style="margin-bottom:14px">
+          <label><input type="radio" name="origen" value="extranjero" checked />Fuera de España (importar)</label>
+          <label><input type="radio" name="origen" value="espana" />En España</label>
+        </div>
+        <div class="tres">
+          <label class="campo"><span>Precio de compra (€) *</span><input type="number" name="precio_compra" min="0" inputmode="numeric" required /></label>
+          <label class="campo"><span>Año</span><input type="number" name="anio" min="1980" max="2030" inputmode="numeric" /></label>
+          <label class="campo"><span>Kilómetros</span><input type="number" name="km" min="0" inputmode="numeric" /></label>
+        </div>
+        <div data-solo-extranjero>
+          <div class="dos">
+            <label class="campo"><span>CO₂ (g/km) <span class="nota">(ficha técnica)</span></span><input type="number" name="co2" min="0" max="500" inputmode="numeric" /></label>
+            <label class="campo"><span>IVA a pagar (%) <span class="nota">(0 si el precio ya lo incluye)</span></span><input type="number" name="iva_pct" min="0" max="25" step="0.5" value="0" /></label>
+          </div>
+          <label class="campo"><span>Valor fiscal para el impuesto (€) <span class="nota">(opcional; si no, se usa el precio)</span></span><input type="number" name="valor_fiscal" min="0" inputmode="numeric" /></label>
+        </div>
+        <div class="dos">
+          <label class="campo"><span>Reparaciones y puesta a punto (€)</span><input type="number" name="arreglos" min="0" value="0" inputmode="numeric" /></label>
+          <label class="campo"><span>Otros gastos (€)</span><input type="number" name="otros" min="0" value="0" inputmode="numeric" /></label>
+        </div>
+        <label class="campo"><span>¿A cuánto lo venderías? (€)</span><input type="number" name="precio_venta" min="0" inputmode="numeric" /></label>
+      </div>
+      <div class="caja">
+        <h2>Resultado</h2>
+        <table class="tabla" data-resultado-lineas></table>
+        <div class="resultado-total">
+          <div><span class="suave">Coste total puesto en España</span><b data-resultado-coste>—</b></div>
+          <div><span class="suave">Beneficio</span><b data-resultado-beneficio>—</b></div>
+        </div>
+        <details style="margin-top:12px"><summary class="suave">Ajustar gastos de este cálculo</summary>
+          <div class="dos" style="margin-top:10px">
+            <label class="campo"><span>Transporte</span><input type="number" name="transporte" value={costes.transporte} /></label>
+            <label class="campo"><span>Gestoría</span><input type="number" name="gestoria" value={costes.gestoria_import} data-gestoria-import={costes.gestoria_import} data-gestoria-nacional={costes.gestoria_nacional} /></label>
+            <label class="campo"><span>ITV y homologación</span><input type="number" name="itv" value={costes.itv_homologacion} /></label>
+            <label class="campo"><span>Placas y tasas</span><input type="number" name="placas" value={costes.placas_tasas} /></label>
+            <label class="campo"><span>Cambio de nombre</span><input type="number" name="cambio_nombre" value={costes.cambio_nombre} /></label>
+          </div>
+          <p class="suave">Los valores por defecto se cambian en Ajustes.</p>
+        </details>
+        <input type="hidden" name="url" />
+        <div class="botonera" style="margin-top:14px"><button class="boton" type="submit">Guardar cálculo</button><a class="boton secundario" data-pasar-inventario href="/admin/coche/nuevo">Pasar al inventario</a></div>
+      </div>
+    </div>
+  </form>
+  {guardados.length > 0 && (
+    <div class="caja">
+      <h2>Cálculos guardados</h2>
+      <table class="tabla"><thead><tr><th>Fecha</th><th>Coche</th><th>Compra</th><th>Coste total</th><th>Venta</th><th>Beneficio</th><th></th></tr></thead>
+        <tbody>{guardados.map((g) => (
+          <tr data-calculo={g.id}><td>{g.creado.slice(0, 10)}</td><td>{g.url ? <a href={g.url} target="_blank" rel="noopener">{g.titulo || 'anuncio'}</a> : (g.titulo || '—')}</td><td>{euros(g.datos.precio_compra)}</td><td>{euros(g.datos.coste)}</td><td>{g.datos.precio_venta ? euros(g.datos.precio_venta) : '—'}</td><td>{g.datos.beneficio != null ? euros(g.datos.beneficio) : '—'}</td><td><button type="button" class="enlace-borrar" data-borrar-calculo aria-label="Borrar">✕</button></td></tr>
+        ))}</tbody></table>
+    </div>
+  )}
+</Admin>

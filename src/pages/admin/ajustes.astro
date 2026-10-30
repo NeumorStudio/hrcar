@@ -1,0 +1,137 @@
+---
+import { NEGOCIO, SITIO, NOMBRE_WEB } from '../../negocio.js';
+import Admin from '../../layouts/Admin.astro';
+import { ajuste } from '../../lib/datos.js';
+import { MIN_LONGITUD, haySoporte, enlaceJuanPendiente, DIAS_ENLACE } from '../../lib/acceso.js';
+import { leerOcultos } from '../../lib/secciones.js';
+import { COSTES_POR_DEFECTO } from '../../lib/importacion.js';
+import { usoFotos } from '../../lib/fotos.js';
+import { vendidosConFotos } from '../../lib/datos.js';
+const env = Astro.locals.runtime.env;
+const costes = { ...COSTES_POR_DEFECTO, ...JSON.parse((await ajuste(env.DB, 'costes')) || '{}') };
+const correo = (await ajuste(env.DB, 'correo_avisos')) || env.CORREO_DESTINO || NEGOCIO.email;
+const correoListo = !!env.RESEND_API_KEY;
+const usuario = Astro.locals.usuario?.usuario || 'juan';
+const soporte = await haySoporte(env.DB);
+const [enlacePendiente, ocultos] = await Promise.all([enlaceJuanPendiente(env.DB), leerOcultos(env.DB).catch(() => [])]);
+const fechaCorta = (ms) => new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' });
+const [uso, liberables] = await Promise.all([usoFotos(env.DB).catch(() => null), vendidosConFotos(env.DB, 180).catch(() => [])]);
+const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
+---
+<Admin titulo="Ajustes" seccion="ajustes">
+  <h1>Ajustes</h1>
+  <a class="caja caja-enlace" href="/admin/web">
+    <span><b>Tu web a tu medida</b><small>Elige qué páginas, bloques de la portada y botones se ven en tu web.{ocultos.length > 0 && ` Ahora tienes ${ocultos.length} ${ocultos.length === 1 ? 'cosa oculta' : 'cosas ocultas'}.`}</small></span>
+    <span aria-hidden="true">›</span>
+  </a>
+  <div class="caja">
+    <h2>Avisos por correo</h2>
+    <p class="suave">Los formularios de la web te llegan a este correo{correoListo ? '' : ' (el envío de correos todavía no está activado; mientras tanto, los mensajes quedan en la pestaña Mensajes)'}.</p>
+    <form data-api="/api/admin/ajustes" data-aviso="Correo guardado">
+      <input type="hidden" name="accion" value="correo" />
+      <label class="campo"><span>Correo para los avisos</span><input type="email" name="correo" value={correo} required /></label>
+      <button class="boton" type="submit">Guardar</button>
+    </form>
+  </div>
+  <div class="caja">
+    <h2>Gastos por defecto de la calculadora</h2>
+    <p class="suave">Lo que sueles pagar. Se usan en cada cálculo nuevo y puedes ajustarlos en cada caso.</p>
+    <form data-api="/api/admin/ajustes" data-aviso="Gastos guardados">
+      <input type="hidden" name="accion" value="costes" />
+      <div class="tres">
+        <label class="campo"><span>Transporte desde fuera (€)</span><input type="number" name="transporte" min="0" value={costes.transporte} /></label>
+        <label class="campo"><span>Gestoría de importación (€)</span><input type="number" name="gestoria_import" min="0" value={costes.gestoria_import} /></label>
+        <label class="campo"><span>ITV y homologación (€)</span><input type="number" name="itv_homologacion" min="0" value={costes.itv_homologacion} /></label>
+        <label class="campo"><span>Placas y tasas de Tráfico (€)</span><input type="number" name="placas_tasas" min="0" value={costes.placas_tasas} /></label>
+        <label class="campo"><span>Cambio de nombre, tasa (€)</span><input type="number" name="cambio_nombre" min="0" value={costes.cambio_nombre} /></label>
+        <label class="campo"><span>Gestoría nacional (€)</span><input type="number" name="gestoria_nacional" min="0" value={costes.gestoria_nacional} /></label>
+      </div>
+      <button class="boton" type="submit">Guardar</button>
+    </form>
+  </div>
+  <div class="caja" id="avisos" data-push-caja>
+    <h2>Avisos en el móvil</h2>
+    <p class="suave">Instala el panel en el móvil y recibe un aviso cada vez que llegue un mensaje desde la web, aunque tengas el panel cerrado.</p>
+    <div class="botonera">
+      <button class="boton" type="button" data-push-activar>Activar avisos en este móvil</button>
+      <button class="boton secundario" type="button" data-push-quitar hidden>Quitar avisos en este móvil</button>
+      <button class="boton secundario" type="button" data-push-probar hidden>Enviar un aviso de prueba</button>
+    </div>
+    <p class="suave" data-push-estado style="margin-top:10px"></p>
+    <p class="suave" data-instalar-ayuda hidden>Para instalarlo: en Android, menú de Chrome → «Añadir a pantalla de inicio»; en iPhone, Safari → Compartir → «Añadir a pantalla de inicio» (los avisos en iPhone solo funcionan con el panel instalado).</p>
+  </div>
+  <div class="caja">
+    <h2>Cambiar contraseña</h2>
+    <p class="suave">Has entrado como <b>{usuario === 'soporte' ? 'Soporte' : NEGOCIO.duenoNombre}</b>. Cambias tu propia contraseña.</p>
+    <form data-api="/api/admin/ajustes" data-aviso="Contraseña cambiada" data-limpiar>
+      <input type="hidden" name="accion" value="clave" />
+      <label class="campo"><span>Contraseña actual</span><input type="password" name="actual" required autocomplete="current-password" /></label>
+      <label class="campo"><span>Nueva contraseña</span><input type="password" name="clave" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
+      <label class="campo"><span>Repite la nueva</span><input type="password" name="clave2" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
+      <button class="boton" type="submit">Cambiar</button>
+    </form>
+  </div>
+  <div class="caja">
+    <h2>Acceso de soporte</h2>
+    <p class="suave">Una segunda contraseña, distinta de la del dueño, para quien le lleva la web: así puede entrar a revisar o arreglar algo sin conocer la contraseña del dueño. {soporte ? 'Está activado.' : 'No está activado.'}</p>
+    <form data-api="/api/admin/ajustes" data-aviso={soporte ? 'Contraseña de soporte cambiada' : 'Acceso de soporte activado'} data-limpiar data-recargar>
+      <input type="hidden" name="accion" value="soporte" />
+      <label class="campo"><span>Tu contraseña actual</span><input type="password" name="actual" required autocomplete="current-password" /></label>
+      <label class="campo"><span>{soporte ? 'Nueva contraseña de soporte' : 'Contraseña de soporte'}</span><input type="password" name="clave" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
+      <label class="campo"><span>Repítela</span><input type="password" name="clave2" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
+      <div class="botonera">
+        <button class="boton" type="submit">{soporte ? 'Cambiar' : 'Activar'}</button>
+        {soporte && usuario === 'juan' && <button class="boton peligro" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"soporte_quitar"}' data-confirmar="¿Quitar el acceso de soporte?" data-aviso="Acceso de soporte quitado" data-recargar>Quitar acceso de soporte</button>}
+      </div>
+    </form>
+  </div>
+  <div class="caja" id="enlace-juan">
+    <h2>Contraseña del dueño, sin pasársela</h2>
+    <p class="suave">Crea un enlace para que el dueño ponga su propia contraseña desde el móvil. Sirve una sola vez y caduca en {DIAS_ENLACE} días. Cuando lo use, se cierran las sesiones abiertas (también esta): se vuelve a entrar con la contraseña de cada uno.</p>
+    {enlacePendiente && <p class="suave" data-enlace-pendiente>Hay un enlace sin usar hasta el {fechaCorta(enlacePendiente)}. Si creas otro, el anterior deja de valer.</p>}
+    <button class="boton" type="button" data-enlace-juan data-sitio={SITIO} data-wa={NEGOCIO.whatsapp}>{enlacePendiente ? 'Crear un enlace nuevo' : 'Crear enlace para el dueño'}</button>
+    <div data-enlace-juan-listo hidden style="margin-top:14px">
+      <label class="campo"><span>Enlace para el dueño</span><input type="text" readonly data-enlace-juan-url /></label>
+      <div class="botonera">
+        <a class="boton" data-enlace-juan-wa target="_blank" rel="noopener">Enviar por WhatsApp al dueño</a>
+        <button class="boton secundario" type="button" data-enlace-juan-copiar>Copiar enlace</button>
+      </div>
+    </div>
+  </div>
+  <div class="caja" id="copia">
+    <h2>Copia de seguridad</h2>
+    <p class="suave">Descarga en un archivo todos los coches, clientes, mensajes, tareas y ventas. Guárdalo en el ordenador o en tu correo de vez en cuando (una vez al mes, por ejemplo). Las fotos no van dentro: siguen en la web.</p>
+    <a class="boton secundario" href="/api/admin/exportar" download>Descargar copia de seguridad</a>
+  </div>
+  {uso && (
+    <div class="caja" id="espacio">
+      <h2>Espacio para fotos</h2>
+      <p class="suave" style="margin:0">{uso.n} fotos · {mb(uso.bytes)} de {mb(uso.limite)} usados ({uso.porcentaje} %).</p>
+      <div class={`uso ${uso.porcentaje >= 95 ? 'lleno' : uso.porcentaje >= 80 ? 'alto' : ''}`} role="img" aria-label={`${uso.porcentaje} % usado`}><span style={`width:${Math.max(1, uso.porcentaje)}%`}></span></div>
+      {liberables.length > 0 ? (
+        <>
+          <p class="suave">Hay {liberables.length} {liberables.length === 1 ? 'coche vendido' : 'coches vendidos'} hace más de 6 meses con todas sus fotos. Puedes dejarles solo la portada (la que sale en «Últimas entregas») y liberar espacio. Las demás fotos se borran y no se pueden recuperar.</p>
+          <button type="button" class="boton secundario" data-liberar-espacio>Liberar espacio</button>
+        </>
+      ) : <p class="suave">Cuando se acerque al límite, aquí podrás liberar el espacio de los coches vendidos hace tiempo.</p>}
+    </div>
+  )}
+  <div class="caja">
+    <h2>Imágenes de la web</h2>
+    <p class="suave">La foto grande de la portada y las de las secciones (encargo, vende tu coche, servicios) se pueden cambiar.</p>
+    <a class="boton secundario" href="/admin/imagenes">Cambiar las imágenes</a>
+  </div>
+  <div class="caja">
+    <h2>Cómo funciona</h2>
+    <p>• <b>Añadir vehículo</b>: rellena los 5 pasos y publica. Sale en la web al momento. Si se te cierra la página a medias, al volver te ofrece recuperar lo que habías escrito.</p>
+    <p>• <b>Cambiar algo de un coche</b>: en Inventario pulsa «Editar», cambia lo que sea (el precio, una foto…) y pulsa <b>Guardar cambios</b>, que está siempre abajo.</p>
+    <p>• <b>Uno parecido</b>: en la ficha de un coche, «Duplicar» abre el alta con sus datos ya puestos (sin fotos ni matrícula).</p>
+    <p>• <b>Vender un coche</b>: en Inventario (o en su ficha), cambia su estado a <b>Vendido</b> y pon el precio de venta. Se apunta en Ventas y la web lo marca con el sello VENDIDO y lo pasa a «Últimas entregas». No hace falta eliminarlo.</p>
+    <p>• <b>Ocultar un coche</b>: el estado <b>Oculto</b> lo quita de la web sin borrarlo (para prepararlo con calma o retirarlo un tiempo).</p>
+    <p>• <b>Oferta</b>: en el paso Precio, activa «En oferta» y pon el precio rebajado.</p>
+    <p>• <b>Orden de la web</b>: primero salen los disponibles, luego los de «Próximamente» y los reservados. Dentro de cada grupo, los últimos que añades salen arriba; «Poner el primero en el listado» sube uno.</p>
+    <p>• <b>Mensajes</b>: cada formulario de la web queda guardado ahí{correoListo ? ', y además te llega por correo' : ''}. Con los avisos del móvil activados te enteras al momento. El que escribe pasa solo a <b>Clientes</b>.</p>
+    <p>• <b>Tareas</b>: apunta llamadas y recordatorios; en Inicio ves lo de hoy.</p>
+    <p>• <b>Calculadora</b>: pega un anuncio y te dice cuánto cuesta el coche puesto en España y qué margen deja.</p>
+  </div>
+</Admin>

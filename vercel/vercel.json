@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "https://hrcar.pages.dev/$1" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": { "suf": ".vercel.app" } }],
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+---
+import { NEGOCIO, SITIO, NOMBRE_WEB } from '../../negocio.js';
+import Admin from '../../layouts/Admin.astro';
+import { hayContrasena, sesionValida, leerCookie } from '../../lib/acceso.js';
+const db = Astro.locals.runtime.env.DB;
+// después de entrar, a donde iba (solo direcciones del propio panel)
+const volver = Astro.url.searchParams.get('volver') || '';
+const ir = /^\/admin([/?][^\s\\]*)?$/.test(volver) && !volver.includes('//') ? volver : '/admin';
+if (!(await hayContrasena(db))) return Astro.redirect('/admin/configurar');
+if (await sesionValida(db, leerCookie(Astro.request))) return Astro.redirect(ir);
+---
+<Admin titulo="Entrar" sinMenu>
+  <div class="acceso-logo"><img src={NEGOCIO.logo} alt={NEGOCIO.nombre} style="border-radius:50%" /></div>
+  <div class="caja">
+    <h1>Panel de {NEGOCIO.nombre}</h1>
+    <p class="suave">Gestiona los coches de la web y los mensajes de los clientes.</p>
+    <form data-api="/api/admin/entrar" data-ir={ir}>
+      <label class="campo"><span>Contraseña</span><input type="password" name="clave" required autocomplete="current-password" autofocus /></label>
+      <button class="boton" type="submit" style="width:100%">Entrar</button>
+    </form>
+  </div>
+  <p class="ayuda" style="text-align:center">¿Problemas para entrar? Escribe a NeumorStudio, que te lleva la web.</p>
+</Admin>

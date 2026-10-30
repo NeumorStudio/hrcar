@@ -1,0 +1,38 @@
+---
+// Servicios: todo lo que ofrece el concesionario.
+import Marco from '../Marco.astro';
+import Faq from '../Faq.astro';
+import { SERVICIOS, SERVICIOS_PAGINA } from '../contenido.js';
+import { NEGOCIO } from '../../negocio.js';
+---
+<Marco pagina="servicios" title={`Servicios | ${NEGOCIO.nombre}`} description="Financiación, garantía, gestión de venta, importación, coches a la carta y entrega puerta a puerta. Nos ocupamos de todo para que tú solo te preocupes de conducir.">
+  <header class="cabecera-pagina">
+    <div class="envoltorio">
+      <span class="antetitulo">Servicios de {NEGOCIO.nombre}</span>
+      <h1>{SERVICIOS_PAGINA.h1}</h1>
+      <p>{SERVICIOS_PAGINA.texto}</p>
+    </div>
+  </header>
+  <section class="seccion sin-borde">
+    <div class="envoltorio">
+      <div class="servicios revela">
+        {SERVICIOS.map((s) => (
+          <div class="servicio">
+            <div class="foto"><img src={s.foto} alt="" width="800" height="500" loading="lazy" /></div>
+            <h3>{s.titulo}</h3>
+            <p>{s.texto}</p>
+            {s.enlace && <p><a class="enlace-flecha" href={s.enlace}>Más información</a></p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+  <section class="seccion">
+    <div class="envoltorio titulo-seccion centrado revela" style="margin-bottom:0">
+      <h2>¿Listo para conducir sin preocupaciones?</h2>
+      <p>Contacta con nosotros y encontramos la solución perfecta para tu próximo coche.</p>
+      <a class="btn grande" href="/contact" style="margin-top:12px">Solicita información</a>
+    </div>
+  </section>
+  <Faq preguntas={SERVICIOS_PAGINA.preguntas} titulo="Preguntas sobre nuestros servicios" subtitulo="Resuelve tus dudas antes de decidirte." />
+</Marco>

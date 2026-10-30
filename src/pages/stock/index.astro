@@ -1,0 +1,7 @@
+---
+import Stock from '../../diseno2/paginas/Stock.astro';
+import { listarPublicos } from '../../lib/datos.js';
+// los que están a la venta y los 12 últimos vendidos: la página no crece sin fin
+const coches = await listarPublicos(Astro.locals.runtime.env.DB, 12);
+---
+<Stock coches={coches} />

@@ -1,0 +1,6 @@
+---
+import Financiacion from '../diseno2/paginas/Financiacion.astro';
+import { listarEnVenta } from '../lib/datos.js';
+const coches = await listarEnVenta(Astro.locals.runtime.env.DB);
+---
+<Financiacion coches={coches} />

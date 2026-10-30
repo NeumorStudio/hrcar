@@ -1,0 +1,14 @@
+---
+import Ficha from '../../diseno2/paginas/Ficha.astro';
+import { obtenerCoche, listarParecidos, NO_PUBLICOS } from '../../lib/datos.js';
+const env = Astro.locals.runtime.env;
+const coche = await obtenerCoche(env.DB, Astro.params.slug);
+if (!coche || NO_PUBLICOS.includes(coche.estado)) {
+  // la página «no existe» de la web (con enlaces al stock), no una página en blanco
+  const pagina = env.ASSETS ? await env.ASSETS.fetch(new URL('/404', Astro.url)).catch(() => null) : null;
+  const html = pagina && pagina.ok ? await pagina.text() : '<!doctype html><title>No encontrado</title><p>Este coche ya no está en la web. <a href="/stock">Ver el stock</a></p>';
+  return new Response(html, { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+const otros = await listarParecidos(env.DB, coche, 3);
+---
+<Ficha coche={coche} otros={otros} />

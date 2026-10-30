@@ -1,0 +1,42 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { listarTareas, clientesRecientes } from '../../lib/crm.js';
+import { cochesParaElegir } from '../../lib/datos.js';
+const db = Astro.locals.runtime.env.DB;
+const [tareas, clientes, coches] = await Promise.all([listarTareas(db), clientesRecientes(db), cochesParaElegir(db)]);
+const fecha = (f) => (f ? f.split('-').reverse().join('/') : '');
+const pendientes = tareas.filter((t) => !t.hecha);
+const hechas = tareas.filter((t) => t.hecha).slice(0, 30);
+const grupo = (t) => (t.atrasada ? 'Atrasadas' : t.esHoy ? 'Hoy' : t.fecha ? 'Próximas' : 'Sin fecha');
+const grupos = ['Atrasadas', 'Hoy', 'Próximas', 'Sin fecha'].map((g) => [g, pendientes.filter((t) => grupo(t) === g)]).filter(([, l]) => l.length);
+---
+<Admin titulo="Tareas" seccion="tareas">
+  <div class="fila-titulo"><div><h1>Tareas</h1><p class="suave">Llamadas, recordatorios y cosas por hacer.</p></div></div>
+  <div class="caja">
+    <form data-api="/api/admin/tareas" data-recargar data-aviso="Tarea añadida" class="form-tarea">
+      <label class="campo" style="flex:2;min-width:220px"><span>Nueva tarea</span><input type="text" name="titulo" placeholder="Llamar a Ana por el Audi, ITV del Kia…" required /></label>
+      <label class="campo"><span>Fecha</span><input type="date" name="fecha" /></label>
+      <label class="campo"><span>Hora</span><input type="time" name="hora" /></label>
+      <label class="campo"><span>Cliente (recientes)</span><select name="cliente_id"><option value="">—</option>{clientes.map((c) => <option value={c.id}>{c.nombre}</option>)}</select></label>
+      <label class="campo"><span>Coche</span><select name="coche"><option value="">—</option>{coches.map((c) => <option value={c.slug}>{c.titulo}</option>)}</select></label>
+      <button class="boton" type="submit">Añadir</button>
+    </form>
+  </div>
+  {pendientes.length === 0 && <div class="caja vacio">No hay tareas pendientes.</div>}
+  {grupos.map(([nombre, lista]) => (
+    <div class="caja">
+      <h2>{nombre} <span class="suave">({lista.length})</span></h2>
+      {lista.map((t) => (
+        <div class={`tarea ${t.atrasada ? 'atrasada' : ''}`} data-tarea={t.id}>
+          <label><input type="checkbox" data-hecha /> <span class="titulo-tarea">{t.titulo}</span></label>
+          <span class="suave">{fecha(t.fecha)}{t.hora && ` ${t.hora}`}{t.cliente_nombre && <a href={`/admin/clientes/${t.cliente_id}`}> · {t.cliente_nombre}</a>}{t.cliente_telefono && <a href={`tel:${t.cliente_telefono}`}> 📞</a>}{t.coche && <a href={`/admin/coche/${t.coche}`}> · coche</a>} <button type="button" class="enlace-borrar" data-borrar-tarea aria-label="Borrar">✕</button></span>
+        </div>
+      ))}
+    </div>
+  ))}
+  {hechas.length > 0 && (
+    <details class="caja"><summary>Hechas ({hechas.length})</summary>
+      {hechas.map((t) => <div class="tarea hecha" data-tarea={t.id}><label><input type="checkbox" data-hecha checked /> <span class="titulo-tarea">{t.titulo}</span></label><span class="suave">{fecha(t.fecha)} <button type="button" class="enlace-borrar" data-borrar-tarea aria-label="Borrar">✕</button></span></div>)}
+    </details>
+  )}
+</Admin>

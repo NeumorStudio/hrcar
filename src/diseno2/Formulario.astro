@@ -1,0 +1,26 @@
+---
+// Formulario que envía a /api/formulario (igual que la web actual): nombre, contacto y mensaje,
+// más los campos extra que le pase cada página en el slot (y en el slot «final», justo antes del botón).
+import { NOTA_PRIVACIDAD } from '../lib/legal.js';
+interface Props { tipo: string; asunto: string; boton?: string; coche?: string; exito?: string; mensaje?: boolean; fotos?: boolean }
+const { tipo, asunto, boton = 'Enviar', coche = '', exito = 'Recibido. Te contestamos en cuanto podamos.', mensaje = true, fotos = false } = Astro.props;
+---
+<form class="formulario" data-formulario={tipo} data-exito={exito} novalidate>
+  <input type="hidden" name="formulario" value={tipo} />
+  <input type="hidden" name="asunto" value={asunto} />
+  {coche && <input type="hidden" name="coche" value={coche} />}
+  <input class="honeypot" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+  <slot name="antes" />
+  <div class="fila">
+    <label>Nombre<input type="text" name="nombre" required autocomplete="name" /></label>
+    <label>Teléfono<input type="tel" name="telefono" inputmode="tel" autocomplete="tel" /></label>
+  </div>
+  <label>Email<input type="email" name="email" autocomplete="email" /></label>
+  <slot />
+  {mensaje && <label>Mensaje<textarea name="mensaje"></textarea></label>}
+  {fotos && <label>Fotos del coche (opcional)<input type="file" name="fotos" accept="image/*" multiple /></label>}
+  <p class="nota">Indica al menos un teléfono o un email.</p>
+  <slot name="final" />
+  <button class="btn grande" type="submit">{boton}</button>
+  <p class="nota privacidad">{NOTA_PRIVACIDAD} <button type="button" class="enlace-legal" data-abrir="privacidad">Política de privacidad</button></p>
+</form>

@@ -1,0 +1,61 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { listarVentas, resumenVentas, clientesRecientes } from '../../lib/crm.js';
+import { cochesParaElegir } from '../../lib/datos.js';
+import { euros } from '../../lib/formato.js';
+const db = Astro.locals.runtime.env.DB;
+const [ventas, clientes, coches] = await Promise.all([listarVentas(db), clientesRecientes(db), cochesParaElegir(db)]);
+const r = resumenVentas(ventas);
+const hoy = new Date().toISOString().slice(0, 10);
+const fecha = (f) => (f ? f.split('-').reverse().join('/') : '');
+---
+<Admin titulo="Ventas" seccion="ventas">
+  <div class="fila-titulo"><div><h1>Ventas</h1><p class="suave">Cada coche vendido, con su margen si apuntaste el precio de compra.</p></div></div>
+  <div class="tarjetas-resumen">
+    <div class="resumen"><b>{r.coches}</b><span>vendidos este mes</span></div>
+    <div class="resumen"><b>{euros(r.facturado)}</b><span>facturado este mes</span></div>
+    <div class="resumen"><b>{euros(r.beneficio)}</b><span>beneficio este mes</span></div>
+    <div class="resumen"><b>{r.total}</b><span>vendidos en total</span></div>
+    <div class="resumen"><b>{euros(r.beneficioTotal)}</b><span>beneficio total</span></div>
+  </div>
+  <details class="caja" open={ventas.length === 0}>
+    <summary><h2 style="display:inline">Apuntar una venta</h2></summary>
+    <p class="suave" style="margin-top:10px">Lo normal es venderlo desde Inventario (estado «Vendido») o desde la ficha del coche: se apunta solo. Esto es por si quieres apuntar una venta de otra forma.</p>
+    <form data-api="/api/admin/ventas" data-recargar data-aviso="Venta guardada">
+      <div class="dos">
+        <label class="campo"><span>Coche</span><select name="coche" data-venta-coche><option value="">Otro (escribe el título)</option>{coches.map((c) => <option value={c.slug} data-titulo={c.titulo} data-coste={c.coste ?? ''} data-precio={c.precio_oferta ?? c.precio ?? ''}>{c.titulo}{c.estado === 'Vendido' ? ' (vendido)' : ''}</option>)}</select></label>
+        <label class="campo"><span>Título</span><input type="text" name="titulo" data-venta-titulo /></label>
+      </div>
+      <div class="tres">
+        <label class="campo"><span>Precio de venta (€) *</span><input type="number" name="precio_venta" min="0" required inputmode="numeric" data-venta-precio /></label>
+        <label class="campo"><span>Precio de compra (€)</span><input type="number" name="coste" min="0" inputmode="numeric" data-venta-coste /></label>
+        <label class="campo"><span>Fecha</span><input type="date" name="fecha" value={hoy} /></label>
+      </div>
+      <div class="dos">
+        <label class="campo"><span>Comprador (clientes recientes)</span><select name="cliente_id"><option value="">—</option>{clientes.map((c) => <option value={c.id}>{c.nombre}{c.telefono ? ` · ${c.telefono}` : ''}</option>)}</select></label>
+        <label class="campo"><span>O nombre del comprador</span><input type="text" name="comprador" /></label>
+      </div>
+      <label class="interruptor"><input type="checkbox" name="marcar_vendido" checked /> <span>Marcar el coche como Vendido en la web</span></label>
+      <button class="boton" type="submit">Guardar venta</button>
+    </form>
+  </details>
+  {ventas.length === 0 && <div class="caja vacio">Aún no hay ventas apuntadas.</div>}
+  {ventas.length > 0 && (
+    <div class="caja">
+      <table class="tabla tarjetas">
+        <thead><tr><th>Fecha</th><th>Coche</th><th>Comprador</th><th>Venta</th><th>Compra</th><th>Beneficio</th><th></th></tr></thead>
+        <tbody>{ventas.map((v) => (
+          <tr data-venta={v.id}>
+            <td data-etiqueta="Fecha">{fecha(v.fecha)}</td>
+            <td data-etiqueta="Coche">{v.coche ? <a href={`/admin/coche/${v.coche}`}>{v.titulo}</a> : v.titulo}</td>
+            <td data-etiqueta="Comprador">{v.cliente_nombre ? <a href={`/admin/clientes/${v.cliente_id}`}>{v.cliente_nombre}</a> : (v.comprador || '—')}</td>
+            <td data-etiqueta="Venta" class="num">{euros(v.precio_venta)}</td>
+            <td data-etiqueta="Compra" class="num">{v.coste != null ? euros(v.coste) : '—'}</td>
+            <td data-etiqueta="Beneficio" class={`num ${v.coste != null && v.precio_venta - v.coste < 0 ? 'rojo' : ''}`}>{v.coste != null ? euros(v.precio_venta - v.coste) : '—'}</td>
+            <td class="acciones-fila"><button type="button" class="boton peligro pequeno" data-borrar-venta>Borrar</button></td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  )}
+</Admin>

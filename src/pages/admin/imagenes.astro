@@ -1,0 +1,25 @@
+---
+// Imágenes de la web (portada y secciones): se cambian desde aquí, desde un archivo o desde un enlace.
+import Admin from '../../layouts/Admin.astro';
+import { CLAVES } from '../../lib/imagenes-web.js';
+---
+<Admin titulo="Imágenes de la web" seccion="ajustes">
+  <div class="fila-titulo"><div><h1>Imágenes de la web</h1><p class="suave">Las fotos grandes de la portada y las secciones. Sube una tuya (por ejemplo, del concesionario) o pega el enlace de una imagen; se reduce sola antes de guardar.</p></div><a class="boton secundario" href="/admin/ajustes">Volver a Ajustes</a></div>
+  <div class="dos paneles" data-imagenes-web>
+    {Object.entries(CLAVES).map(([clave, nombre]) => (
+      <div class="caja" data-clave={clave}>
+        <h2>{nombre}</h2>
+        <img src={`/img-web/${clave}.webp`} alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#e5e7eb" data-vista />
+        <p class="suave" data-estado style="margin-top:8px"></p>
+        <div class="botonera" style="margin-top:8px">
+          <label class="boton secundario pequeno" style="cursor:pointer">Subir archivo<input type="file" accept="image/*" hidden data-archivo /></label>
+          <button type="button" class="boton secundario pequeno" data-quitar hidden>Volver a la de serie</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">
+          <input type="url" placeholder="o pega el enlace de una imagen" data-enlace style="flex:1;min-width:200px" />
+          <button type="button" class="boton secundario pequeno" data-traer>Traer</button>
+        </div>
+      </div>
+    ))}
+  </div>
+</Admin>

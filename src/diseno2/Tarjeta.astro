@@ -1,0 +1,41 @@
+---
+// Tarjeta de coche tipo ficha técnica: foto, título, cuatro datos y precio (con cuota orientativa).
+import { fotoMini, urlCoche } from '../lib/plantillas.js';
+import { eurosMiles as euros, kmsMiles as kms, precioFinal, tieneFotos } from '../lib/formato.js';
+import { partesTitulo, tituloLimpio, motor } from '../lib/nombres.js';
+import { cuotaMensual } from './finanzas.js';
+interface Props { coche: any; prioridad?: boolean }
+const { coche: c, prioridad = false } = Astro.props;
+const foto = tieneFotos(c) ? fotoMini(c.fotos[0]) : '/img/covered-car.webp';
+const vendido = c.estado === 'Vendido';
+const precio = precioFinal(c);
+const enOferta = c.precio_oferta != null && c.precio_oferta < c.precio;
+// si financiando el precio es otro (más alto), la cuota se calcula sobre ese, que es el que se financia
+const financiado = c.precio_financiado != null && c.precio_financiado > precio ? c.precio_financiado : precio;
+const cuota = precio > 0 && !vendido ? cuotaMensual(financiado) : null;
+const etiqueta = c.estado === 'Disponible' ? null : c.estado;
+const combustible = motor(c.combustible, true);
+const { nombre, version } = partesTitulo(c);
+const cambio = (c.cambio || '').replace('Automático', 'Auto.');
+---
+<a class:list={['tarjeta', { vendido }]} href={urlCoche(c)} data-coche={c.slug} data-estado={c.estado} data-precio={precio} data-marca={c.marca} data-combustible={c.combustible} data-cambio={c.cambio} data-anio={c.anio} data-km={c.km}>
+  <div class="tarjeta-foto">
+    <img src={foto} alt={tituloLimpio(c)} width="800" height="600" loading={prioridad ? 'eager' : 'lazy'} decoding="async" fetchpriority={prioridad ? 'high' : undefined} />
+    {etiqueta && !vendido && <span class:list={['etiqueta', { pronto: c.estado === 'Próximamente', reservado: c.estado === 'Reservado' }]}>{etiqueta}</span>}
+    {enOferta && !vendido && <span class="etiqueta oferta">Oferta</span>}
+    {vendido && <div class="sello" aria-label="Vendido"><span>VENDIDO</span></div>}
+  </div>
+  <div class="tarjeta-cuerpo">
+    <h3>{nombre}<span class="version">{version || '\u00a0'}</span></h3>
+    <div class="datos">
+      <div>{c.anio || '—'}<small>año</small></div>
+      <div>{c.km != null ? kms(c.km).replace(' km', '') : '—'}<small>kilómetros</small></div>
+      <div>{combustible || '—'}<small>motor</small></div>
+      <div>{cambio || '—'}<small>cambio</small></div>
+    </div>
+    <div class="precio-fila">
+      <span class:list={['precio', { 'oferta-precio': enOferta }]}>{enOferta && <del>{euros(c.precio)}</del>}{precio > 0 ? euros(precio) : 'Consultar'}</span>
+      {cuota && <span class="cuota">desde <b>{euros(cuota)}</b>/mes*</span>}
+    </div>
+  </div>
+</a>

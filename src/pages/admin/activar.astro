@@ -1,0 +1,31 @@
+---
+import { NEGOCIO, SITIO, NOMBRE_WEB } from '../../negocio.js';
+// Enlace de un solo uso que manda quien le lleva la web: el dueño pone aquí su propia contraseña y entra.
+import Admin from '../../layouts/Admin.astro';
+import { enlaceJuanValido, MIN_LONGITUD, DIAS_ENLACE } from '../../lib/acceso.js';
+const codigo = Astro.url.searchParams.get('t') || '';
+const valido = await enlaceJuanValido(Astro.locals.runtime.env.DB, codigo).catch(() => false);
+---
+<Admin titulo={valido ? 'Pon tu contraseña' : 'Enlace caducado'} sinMenu sinReferer>
+  <div class="acceso-logo"><img src={NEGOCIO.logo} alt={NEGOCIO.nombre} style="border-radius:50%" /></div>
+  {valido ? (
+    <div class="caja">
+      <h1>¡Hola!</h1>
+      <p class="suave">Este es el panel de tu web. Desde aquí subes coches, cambias precios, marcas vendidos y ves los mensajes de los clientes. Para entrar, pon una contraseña: solo la sabrás tú.</p>
+      <form data-api="/api/admin/activar" data-ir="/admin?bienvenida=1">
+        <input type="hidden" name="t" value={codigo} />
+        <input type="text" name="usuario" value={`${NEGOCIO.duenoNombre} (${NEGOCIO.nombre})`} autocomplete="username" hidden readonly />
+        <label class="campo"><span>Tu contraseña</span><input type="password" name="clave" minlength={MIN_LONGITUD} required autocomplete="new-password" autofocus /></label>
+        <label class="campo"><span>Repítela</span><input type="password" name="clave2" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
+        <p class="ayuda">Mínimo {MIN_LONGITUD} caracteres (los espacios cuentan). Mejor una frase que recuerdes: por ejemplo, tres palabras y un número. Si el móvil te ofrece guardarla, dile que sí.</p>
+        <button class="boton" type="submit" style="width:100%">Guardar y entrar</button>
+      </form>
+    </div>
+  ) : (
+    <div class="caja">
+      <h1>Este enlace ya no vale</h1>
+      <p class="suave">Ya se ha usado o ha caducado (dura {DIAS_ENLACE} días). Si ya pusiste tu contraseña, entra con ella. Si no, pide un enlace nuevo a NeumorStudio.</p>
+      <a class="boton" href="/admin/entrar" style="width:100%">Ir a entrar</a>
+    </div>
+  )}
+</Admin>

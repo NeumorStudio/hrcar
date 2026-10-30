@@ -1,0 +1,7 @@
+---
+// Salen solos los coches que el dueño marca como Vendido en el panel.
+import Historia from '../diseno2/paginas/Historia.astro';
+import { listarVendidos } from '../lib/datos.js';
+const vendidos = await listarVendidos(Astro.locals.runtime.env.DB, 24);
+---
+<Historia vendidos={vendidos} />

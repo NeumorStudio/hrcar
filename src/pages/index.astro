@@ -1,0 +1,7 @@
+---
+import Inicio from '../diseno2/paginas/Inicio.astro';
+import { listarEnVenta } from '../lib/datos.js';
+// solo los que están a la venta
+const coches = await listarEnVenta(Astro.locals.runtime.env.DB);
+---
+<Inicio coches={coches} />

@@ -1,0 +1,47 @@
+---
+// Listado de coches con filtros (se aplican en el navegador; la página sale cacheada del borde).
+// Llegan los coches en venta y los 12 últimos vendidos (los demás están en «Últimas entregas»).
+import Marco from '../Marco.astro';
+import Tarjeta from '../Tarjeta.astro';
+import Faq from '../Faq.astro';
+import { ordenListado } from '../../lib/formato.js';
+import { motor } from '../../lib/nombres.js';
+import { notaCuotas } from '../finanzas.js';
+import { PREGUNTAS_STOCK } from '../contenido.js';
+import { NEGOCIO } from '../../negocio.js';
+interface Props { coches: any[] }
+const { coches } = Astro.props;
+const listado = ordenListado(coches);
+const enVenta = listado.filter((c) => c.estado !== 'Vendido');
+const marcas = [...new Set(listado.map((c) => c.marca).filter(Boolean))].sort();
+const combustibles = [...new Set(listado.map((c) => c.combustible).filter(Boolean))].sort();
+const bonito = (m: string) => motor(m);
+const preguntas = PREGUNTAS_STOCK;
+---
+<Marco pagina="stock" title={`Coches en stock (${enVenta.length}) | ${NEGOCIO.nombre} ${NEGOCIO.localidad}`} description={`Coches de ocasión en ${NEGOCIO.localidad}: ${enVenta.length === 1 ? '1 coche disponible' : `${enVenta.length} coches disponibles`} en ${NEGOCIO.nombre}. Financiación, garantía e importación a medida.`}>
+  <div class="envoltorio pagina-sencilla" style="padding-bottom:0">
+    <h1>Coches en stock</h1>
+    <p class="intro">Descubre los mejores modelos alemanes y de otras marcas. ¿No encuentras el tuyo? <a href="/custom-order">Te lo buscamos a medida</a>.</p>
+  </div>
+  <section class="seccion" style="padding-top:24px">
+    <div class="envoltorio">
+      <button class="btn contorno boton-filtros" type="button" data-boton-filtros aria-expanded="false" aria-controls="filtros-stock">Filtrar y ordenar <span data-filtros-activos></span></button>
+      <form class="filtros" id="filtros-stock" data-filtros aria-label="Filtrar el stock">
+        <label>Marca<select name="marca"><option value="">Todas</option>{marcas.map((m) => <option value={m}>{m}</option>)}</select></label>
+        <label>Motor<select name="combustible"><option value="">Cualquiera</option>{combustibles.map((m) => <option value={m}>{bonito(m)}</option>)}</select></label>
+        <label>Cambio<select name="cambio"><option value="">Cualquiera</option><option>Manual</option><option>Automático</option></select></label>
+        <label>Precio hasta<select name="precio"><option value="">Sin límite</option><option value="12000">12.000 €</option><option value="18000">18.000 €</option><option value="25000">25.000 €</option><option value="35000">35.000 €</option></select></label>
+        <label>Ordenar<select name="orden"><option value="">Recomendado</option><option value="precio-asc">Precio: menor a mayor</option><option value="precio-desc">Precio: mayor a menor</option><option value="km">Menos kilómetros</option><option value="anio">Más nuevos</option></select></label>
+        <button class="btn contorno limpiar" type="reset">Quitar filtros</button>
+      </form>
+      <div class="resumen-listado"><span data-contador aria-live="polite">{enVenta.length} coches</span>{listado.length > enVenta.length && <label class="check" style="display:flex;gap:8px;align-items:center;font-size:0.95rem"><input type="checkbox" data-ver-vendidos /> Ver también los últimos vendidos</label>}</div>
+      <div class="rejilla" data-lista>
+        {listado.map((c, i) => <Tarjeta coche={c} prioridad={i < 2} />)}
+      </div>
+      <div class="vacio" data-vacio hidden><p>Ningún coche coincide con esos filtros.</p><p><a class="btn" href="/custom-order">Te lo buscamos a medida</a></p></div>
+      {listado.length > enVenta.length && <p class="mas-entregas" data-mas-entregas hidden><a class="enlace-flecha" href="/history">Ver todas las entregas</a></p>}
+      {listado.some((c) => (c.precio_oferta ?? c.precio) > 0) && <p class="nota-financiacion">{notaCuotas()}</p>}
+    </div>
+  </section>
+  <Faq preguntas={preguntas} />
+</Marco>

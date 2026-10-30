@@ -1,0 +1,5 @@
+---
+import Sencilla from '../diseno2/paginas/Sencilla.astro';
+import { NEGOCIO } from '../negocio.js';
+---
+<Sencilla pagina="blog" title={`Blog | ${NEGOCIO.nombre}`} description="Consejos para comprar y vender coches de ocasión." titulo="Blog" texto="Aún no hay entradas. Muy pronto: consejos para comprar un coche de ocasión, encargar el coche que buscas y vender el tuyo sin complicaciones." robots="noindex, follow" enlaces={[['/stock', 'Ver el stock'], ['/contact', 'Contactar']]} />

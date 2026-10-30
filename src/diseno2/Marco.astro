@@ -1,0 +1,163 @@
+---
+// Esqueleto de la web: cabecera, menú móvil, pie, barra fija de contacto y textos legales.
+import Legal from './Legal.astro';
+interface Props {
+  pagina: string;
+  title: string;
+  description?: string;
+  robots?: string;
+  ogImage?: string | null;
+  claseCuerpo?: string;
+  barra?: { whatsapp: string; texto?: string } | null;
+}
+const {
+  pagina,
+  title,
+  description = PORTADA.description,
+  robots = 'index, follow',
+  ogImage = null,
+  claseCuerpo = '',
+  barra = null,
+} = Astro.props;
+import { TELEFONO, TELEFONO_BONITO, WHATSAPP, EMAIL, DIRECCION, MAPA, HORARIO } from './datos-contacto.js';
+import { NEGOCIO, SITIO } from '../negocio.js';
+import { PORTADA } from './contenido.js';
+const ruta = Astro.url.pathname.replace(/(\/index)?\.html$/, '').replace(/\/$/, '') || '/';
+const canonical = SITIO + (ruta === '/' ? '' : ruta);
+const imagenOg = ogImage ? (ogImage.startsWith('http') ? ogImage : SITIO + ogImage) : SITIO + '/img-web/hero.webp';
+const LOGO = NEGOCIO.logo;
+const [MARCA_1, MARCA_2] = NEGOCIO.marca;
+const enlaces = [
+  ['stock', '/stock', 'Stock'],
+  ['vende', '/sell-your-car', 'Vende tu coche'],
+  ['encargo', '/custom-order', 'Encargo a medida'],
+  ['financiacion', '/finance', 'Financiación'],
+  ['servicios', '/services', 'Servicios'],
+  ['contacto', '/contact', 'Contacto'],
+];
+// (el blog sigue existiendo en /blog, pero vacío no se enlaza: da sensación de web a medias)
+const masEnlaces = [];
+const wa = barra?.whatsapp || WHATSAPP;
+// eslint-disable-next-line no-undef
+const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
+const ldSeguro = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    {!robots.includes('noindex') && <link rel="canonical" href={canonical} />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:site_name" content={NEGOCIO.nombre} />
+    <meta property="og:image" content={imagenOg} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0a0a0c" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-96.png" sizes="96x96" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" href="/fuentes/inter-5.2.5-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script is:inline>document.documentElement.classList.add('con-js')</script>
+    <link rel="stylesheet" href={`/v2/estilos.css?v=${VERSION}`} />
+    <script src={`/v2/sitio.js?v=${VERSION}`} defer></script>
+    <script type="application/ld+json" set:html={ldSeguro({
+      '@context': 'https://schema.org',
+      '@type': 'AutoDealer',
+      name: NEGOCIO.nombre,
+      url: SITIO,
+      telephone: TELEFONO,
+      email: EMAIL,
+      image: SITIO + '/img-web/nosotros.webp',
+      logo: SITIO + LOGO,
+      priceRange: '€€',
+      address: { '@type': 'PostalAddress', ...(NEGOCIO.direccion !== NEGOCIO.localidad ? { streetAddress: NEGOCIO.direccion } : {}), addressLocality: NEGOCIO.localidad, addressRegion: NEGOCIO.provincia, ...(NEGOCIO.codigoPostal ? { postalCode: NEGOCIO.codigoPostal } : {}), addressCountry: 'ES' },
+      hasMap: MAPA,
+      areaServed: NEGOCIO.provincia,
+      openingHours: NEGOCIO.horarioLd,
+    })} />
+  </head>
+  <body class={claseCuerpo}>
+    <header class="cabecera">
+      <div class="envoltorio">
+        <a class="logo" href="/" aria-label={`${NEGOCIO.nombre}, inicio`}><img src={LOGO} alt="" width="46" height="46" /><span class="marca">{MARCA_1} <b>{MARCA_2}</b></span></a>
+        <nav class="nav" aria-label="Secciones">
+          {enlaces.map(([id, href, texto]) => <a href={href} aria-current={id === pagina ? 'page' : undefined}>{texto}</a>)}
+        </nav>
+        <div class="acciones-cabecera">
+          <a class="tel" href={`tel:${TELEFONO}`}>{TELEFONO_BONITO}</a>
+          <a class="btn wa" href={wa} target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 12 12 0 0 0 4.6 4c1.7.7 2.1.6 2.8.5a2.4 2.4 0 0 0 1.6-1.1 2 2 0 0 0 .1-1.1c0-.1-.2-.2-.5-.3Z"/></svg>WhatsApp</a>
+        </div>
+        <button class="hamburguesa" type="button" aria-label="Abrir el menú" aria-expanded="false" data-menu-boton><span></span></button>
+      </div>
+      <nav class="menu-movil" aria-label="Menú" data-menu>
+        <a href="/">Inicio</a>
+        {[...enlaces, ...masEnlaces].map(([id, href, texto]) => <a href={href} aria-current={id === pagina ? 'page' : undefined}>{texto}</a>)}
+        <div class="pie-menu">
+          <a href={`tel:${TELEFONO}`}>Llamar: {TELEFONO_BONITO}</a>
+          <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
+          <a href={MAPA} target="_blank" rel="noopener">{DIRECCION}</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="pie">
+      <div class="envoltorio">
+        <div class="columnas">
+          <div>
+            <a class="logo logo-pie" href="/" aria-label={`${NEGOCIO.nombre}, inicio`}><img src={LOGO} alt="" width="88" height="88" /><span class="marca">{MARCA_1} <b>{MARCA_2}</b></span></a>
+            <p>{NEGOCIO.nombre}: gestión de venta de vehículos con confianza, transparencia y acompañamiento.</p>
+          </div>
+          <div>
+            <h3>Navegación</h3>
+            <ul>
+              <li><a href="/">Inicio</a></li>
+              <li><a href="/stock">Stock</a></li>
+              <li><a href="/custom-order">Encargo a medida</a></li>
+              <li><a href="/sell-your-car">Vende tu coche</a></li>
+              <li><a href="/finance">Financiación</a></li>
+              <li><a href="/services">Servicios</a></li>
+              <li><a href="/contact">Contacto</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Legal</h3>
+            <ul>
+              <li><button type="button" data-abrir="aviso-legal">Aviso legal</button></li>
+              <li><button type="button" data-abrir="privacidad">Política de privacidad</button></li>
+              <li><button type="button" data-abrir="terminos">Términos y condiciones</button></li>
+              <li><button type="button" data-abrir="cookies">Política de cookies</button></li>
+            </ul>
+          </div>
+          <div>
+            <h3>Contacto</h3>
+            <ul>
+              <li><a href={`tel:${TELEFONO}`}>{TELEFONO_BONITO}</a></li>
+              <li><a href={`mailto:${EMAIL}`}>{EMAIL}</a></li>
+              <li><a href={MAPA} target="_blank" rel="noopener">{DIRECCION}</a></li>
+              <li>{HORARIO}</li>
+            </ul>
+          </div>
+        </div>
+        <p class="creditos"><span>{NEGOCIO.lema}</span><span>© {new Date().getFullYear()} {NEGOCIO.nombre}</span></p>
+      </div>
+    </footer>
+
+    <div class="barra-movil" data-lidi-whatsapp>
+      <a class="btn wa" href={wa} target="_blank" rel="noopener">{barra?.texto || 'WhatsApp'}</a>
+      <a class="btn contorno" href={`tel:${TELEFONO}`}>Llamar</a>
+    </div>
+    <div class="avisos" data-avisos aria-live="polite"></div>
+    <Legal />
+  </body>
+</html>
