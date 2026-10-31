@@ -37,12 +37,13 @@ if (soloVendidos) {
 }
 const hayVendidosSinCargar = !soloVendidos && cuenta('Vendido') > ULTIMOS_VENDIDOS;
 const enlacePagina = (n) => `/admin/inventario?vendidos=1${busqueda ? `&q=${encodeURIComponent(busqueda)}` : ''}${n > 1 ? `&pagina=${n}` : ''}`;
+const n = (k, uno, varios) => `${k} ${k === 1 ? uno : varios}`;
 ---
 <Admin titulo="Inventario" seccion="inventario">
   <div class="fila-titulo">
     <div>
       <h1>{soloVendidos ? 'Coches vendidos' : 'Inventario'}</h1>
-      <p class="suave">{total} vehículos · {cuenta('Disponible')} disponibles · {cuenta('Vendido')} vendidos{cuenta('Oculto') > 0 && ` · ${cuenta('Oculto')} ocultos`}</p>
+      <p class="suave">{n(total, 'vehículo', 'vehículos')} · {n(cuenta('Disponible'), 'disponible', 'disponibles')} · {n(cuenta('Vendido'), 'vendido', 'vendidos')}{cuenta('Oculto') > 0 && ` · ${n(cuenta('Oculto'), 'oculto', 'ocultos')}`}</p>
     </div>
     {soloVendidos ? <a class="boton secundario" href="/admin/inventario">Volver al inventario</a> : <a class="boton" href="/admin/coche/nuevo">+ Añadir vehículo</a>}
   </div>

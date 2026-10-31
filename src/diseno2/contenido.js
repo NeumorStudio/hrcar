@@ -1,6 +1,6 @@
 // Textos de la web de H & R Car, tomados de su web de Arbicars (portada, servicios, preguntas frecuentes…).
 // Las fotos de /img-web/ se cambian desde el panel (Imágenes de la web); las de /img/servicios/ son fijas.
-// Condiciones que ha confirmado el dueño: garantía (sin cifra general: los meses se ponen en cada coche desde el panel),
+// Condiciones que ha confirmado el dueño: garantía de 6 meses (cada coche puede llevar otra cifra desde el panel),
 // financiación con respuesta en 24 horas e importación. Entrega a domicilio, de momento no.
 import { NEGOCIO } from '../negocio.js';
 
@@ -24,7 +24,7 @@ export const PORTADA = {
     texto: `En ${N} transformamos la venta de tu coche en una experiencia segura y sin complicaciones. Nos encargamos de todo, desde la valoración hasta la entrega al nuevo propietario, garantizando transparencia y rapidez.`,
     puntos: [
       'Control mecánico y documental antes de la entrega',
-      'Garantía en todos nuestros coches',
+      'Garantía de 6 meses en todos nuestros coches',
       'Nos encargamos del papeleo y de la transferencia',
       'Financiación flexible con respuesta en 24 horas',
     ],
@@ -47,7 +47,7 @@ export const PORTADA = {
 
 export const SERVICIOS = [
   { titulo: 'Financiación', texto: 'Te proponemos cuotas realistas según tu caso, con respuesta en 24 horas.', foto: '/img-web/financiacion.webp', enlace: '/finance' },
-  { titulo: 'Garantía', texto: 'Todos nuestros coches tienen garantía que cubre los componentes principales. La gestionamos nosotros.', foto: '/img-web/taller.webp' },
+  { titulo: 'Garantía', texto: '6 meses de garantía en todos nuestros coches, que cubre los componentes principales. La gestionamos nosotros.', foto: '/img-web/taller.webp' },
   { titulo: 'Gestión de venta', texto: 'Nos encargamos de todo el proceso, desde la valoración hasta la entrega, para que no tengas que mover un dedo.', foto: '/img-web/acompanamiento.webp', enlace: '/sell-your-car' },
   { titulo: 'Importación', texto: 'Traemos el vehículo que deseas desde cualquier parte del mundo, gestionando aduanas y logística.', foto: '/img-web/importacion.webp', enlace: '/custom-order' },
   { titulo: 'Coches a la carta', texto: 'Seleccionamos el modelo que más se ajuste a tus gustos y necesidades.', foto: '/img/servicios/a-la-carta.webp', enlace: '/custom-order' },
@@ -57,7 +57,7 @@ export const SERVICIOS = [
 /** Preguntas de la portada. */
 export const PREGUNTAS = [
   ['¿Qué tipos de vehículos ofrecéis?', `En ${N} tenemos una selección de marcas alemanas y de otras marcas, tanto nuevos como de segunda mano.`],
-  ['¿Los coches tienen garantía?', 'Sí, todos tienen garantía que cubre los componentes principales. En la ficha de cada coche verás la suya.'],
+  ['¿Los coches tienen garantía?', 'Sí, todos tienen 6 meses de garantía que cubre los componentes principales. La gestionamos nosotros.'],
   [`¿Puedo financiar mi compra con ${N}?`, 'Sí. Normalmente basta con tu DNI, la última nómina y un recibo bancario con tu IBAN, y te damos respuesta en menos de 24 horas.'],
   ['¿Aceptáis mi coche como parte de pago?', 'Sí. Lo tasamos y descontamos su valor del precio final.'],
   ['¿Realizáis importaciones de vehículos?', 'Sí, gestionamos la importación de coches desde cualquier país: aduanas, transporte y trámites.'],
@@ -66,13 +66,13 @@ export const PREGUNTAS = [
 export const PREGUNTAS_STOCK = [
   ['¿Puedo probar los coches antes de comprar?', `Sí, en ${N} organizamos pruebas de conducción para que conozcas el coche en detalle.`],
   ['¿Los precios incluyen impuestos y tasas?', 'Los precios que ves son finales e incluyen todos los impuestos y tasas aplicables.'],
-  ['¿Ofrecéis garantía en los coches de segunda mano?', 'Sí: todos nuestros coches tienen garantía que cubre los componentes principales.'],
+  ['¿Ofrecéis garantía en los coches de segunda mano?', 'Sí: todos nuestros coches tienen 6 meses de garantía que cubre los componentes principales.'],
 ];
 
 export const PREGUNTAS_FICHA = [
   ['¿Puedo probar el coche antes de comprarlo?', 'Sí. Escríbenos por WhatsApp o llámanos y quedamos para que lo veas y lo pruebes.'],
   ['¿Aceptáis mi coche como parte de pago?', 'Sí. Lo tasamos y descontamos su valor del precio final.'],
-  ['¿Tiene garantía?', 'Sí, con garantía que cubre los componentes principales. Pregúntanos y te contamos la de este coche.'],
+  ['¿Tiene garantía?', 'Sí, 6 meses de garantía que cubre los componentes principales.'],
 ];
 
 export const PREGUNTAS_CONTACTO = [
@@ -122,10 +122,10 @@ export const SERVICIOS_PAGINA = {
   texto: `Desde la financiación hasta la entrega de las llaves: en ${N} nos ocupamos de todo.`,
   preguntas: [
     [`¿Cómo funciona la financiación con ${N}?`, 'Estudiamos tu caso y te proponemos una cuota realista, con respuesta en menos de 24 horas y sin sorpresas.'],
-    ['¿Qué incluye la garantía?', 'Cubre los componentes principales del coche durante el periodo que figura en su ficha.'],
+    ['¿Qué incluye la garantía?', 'Cubre los componentes principales del coche durante 6 meses desde la entrega.'],
   ],
 };
 
 /** Frase de la garantía en la ficha de cada coche. */
 export const garantiaFicha = (meses) =>
-  meses ? `Revisado antes de la entrega y con garantía de ${meses} meses que cubre los componentes principales.` : 'Revisado antes de la entrega y con garantía que cubre los componentes principales.';
+  `Revisado antes de la entrega y con garantía de ${meses || 6} meses que cubre los componentes principales.`;

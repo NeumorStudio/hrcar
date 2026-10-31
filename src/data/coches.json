@@ -14,7 +14,7 @@
   "potencia_cv": 122,
   "color": null,
   "etiqueta_dgt": null,
-  "garantia_meses": null,
+  "garantia_meses": 6,
   "ubicacion": "Albacete",
   "anio": 2010,
   "km": 253000,
