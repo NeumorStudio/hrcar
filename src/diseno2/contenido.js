@@ -1,7 +1,7 @@
 // Textos de la web de H & R Car, tomados de su web de Arbicars (portada, servicios, preguntas frecuentes…).
 // Las fotos de /img-web/ se cambian desde el panel (Imágenes de la web); las de /img/servicios/ son fijas.
-// PENDIENTE de confirmar con el cliente: las promesas concretas (inspección de 80 puntos, informe de historial,
-// garantía, entrega a domicilio) venían de la plantilla de Arbicars. Si alguna no es verdad, se quita de aquí.
+// Garantía, entrega y financiación: las mismas condiciones que LIDIAUTO (garantía de 12 meses ampliable, entrega en
+// el local o a domicilio en la península, financiación con respuesta en 24 horas). Si el cliente no hace algo, se quita.
 import { NEGOCIO } from '../negocio.js';
 
 const N = NEGOCIO.nombre;
@@ -23,10 +23,10 @@ export const PORTADA = {
     titulo: 'Vende tu coche sin estrés y con total garantía',
     texto: `En ${N} transformamos la venta de tu coche en una experiencia segura y sin complicaciones. Nos encargamos de todo, desde la valoración hasta la entrega al nuevo propietario, garantizando transparencia y rapidez.`,
     puntos: [
-      'Inspección mecánica de 80 puntos antes de la entrega',
-      'Informe de historial completo y verificable',
-      'Gestión de documentación sin papel y digitalizada',
-      'Financiación flexible con socios bancarios locales',
+      'Control mecánico y documental antes de la entrega',
+      'Garantía de 12 meses ampliable, con cobertura en toda España',
+      'Nos encargamos del papeleo y de la transferencia',
+      'Financiación flexible con respuesta en 24 horas',
     ],
   },
   servicios: { antetitulo: 'Nuestros servicios', titulo: 'Todo lo que necesitas para conducir sin preocupaciones' },
@@ -46,32 +46,33 @@ export const PORTADA = {
 };
 
 export const SERVICIOS = [
-  { titulo: 'Financiación', texto: 'Opciones de crédito flexibles adaptadas a tu presupuesto, con aprobación rápida.', foto: '/img-web/financiacion.webp', enlace: '/finance' },
-  { titulo: 'Garantía', texto: 'Cobertura que protege tu inversión y te da tranquilidad a largo plazo.', foto: '/img-web/taller.webp' },
+  { titulo: 'Financiación', texto: 'Te proponemos cuotas realistas según tu caso, con respuesta en 24 horas.', foto: '/img-web/financiacion.webp', enlace: '/finance' },
+  { titulo: 'Garantía', texto: '12 meses de garantía ampliable, con cobertura en toda España. Lo gestionamos todo nosotros.', foto: '/img-web/taller.webp' },
   { titulo: 'Gestión de venta', texto: 'Nos encargamos de todo el proceso, desde la valoración hasta la entrega, para que no tengas que mover un dedo.', foto: '/img-web/acompanamiento.webp', enlace: '/sell-your-car' },
   { titulo: 'Importación', texto: 'Traemos el vehículo que deseas desde cualquier parte del mundo, gestionando aduanas y logística.', foto: '/img-web/importacion.webp', enlace: '/custom-order' },
   { titulo: 'Coches a la carta', texto: 'Seleccionamos el modelo que más se ajuste a tus gustos y necesidades.', foto: '/img/servicios/a-la-carta.webp', enlace: '/custom-order' },
-  { titulo: 'Entrega puerta a puerta', texto: 'Recibe tu coche directamente en tu domicilio, con inspección final y documentación completa.', foto: '/img/servicios/entrega.webp' },
+  { titulo: 'Entrega cómoda', texto: 'Recógelo en nuestras instalaciones o te lo llevamos a cualquier punto de la península.', foto: '/img/servicios/entrega.webp' },
 ];
 
 /** Preguntas de la portada. */
 export const PREGUNTAS = [
   ['¿Qué tipos de vehículos ofrecéis?', `En ${N} tenemos una selección de marcas alemanas y de otras marcas, tanto nuevos como de segunda mano.`],
-  ['¿Cómo funciona la entrega puerta a puerta?', 'Coordinamos la logística y te llevamos el coche a tu domicilio, con inspección final y toda la documentación.'],
-  [`¿Puedo financiar mi compra con ${N}?`, 'Sí, ofrecemos financiación flexible y adaptada a tu perfil, con respuesta rápida.'],
+  ['¿Los coches tienen garantía?', 'Sí, todos incluyen garantía de 12 meses ampliable, con cobertura en toda España. La gestionamos nosotros.'],
+  [`¿Puedo financiar mi compra con ${N}?`, 'Sí. Normalmente basta con tu DNI, la última nómina y un recibo bancario con tu IBAN, y te damos respuesta en menos de 24 horas.'],
+  ['¿Hacéis envíos a toda España?', 'Sí, entregamos en cualquier punto de la península. Pregúntanos el precio del transporte hasta tu zona.'],
   ['¿Realizáis importaciones de vehículos?', 'Sí, gestionamos la importación de coches desde cualquier país: aduanas, transporte y trámites.'],
 ];
 
 export const PREGUNTAS_STOCK = [
   ['¿Puedo probar los coches antes de comprar?', `Sí, en ${N} organizamos pruebas de conducción para que conozcas el coche en detalle.`],
   ['¿Los precios incluyen impuestos y tasas?', 'Los precios que ves son finales e incluyen todos los impuestos y tasas aplicables.'],
-  ['¿Ofrecéis garantía en los coches de segunda mano?', 'Todos nuestros coches cuentan con garantía que cubre los componentes principales.'],
+  ['¿Ofrecéis garantía en los coches de segunda mano?', 'Sí: todos nuestros coches tienen 12 meses de garantía ampliable que cubre los componentes principales.'],
 ];
 
 export const PREGUNTAS_FICHA = [
   ['¿Puedo probar el coche antes de comprarlo?', 'Sí. Escríbenos por WhatsApp o llámanos y quedamos para que lo veas y lo pruebes.'],
   ['¿Aceptáis mi coche como parte de pago?', 'Sí. Lo tasamos y descontamos su valor del precio final.'],
-  ['¿Tiene garantía?', 'Todos nuestros coches cuentan con garantía que cubre los componentes principales.'],
+  ['¿Tiene garantía?', 'Sí: 12 meses de garantía ampliable que cubre los componentes principales, con cobertura en toda España.'],
 ];
 
 export const PREGUNTAS_CONTACTO = [
@@ -86,7 +87,7 @@ export const ENCARGO = {
   pasos: [
     ['Selección', 'Nos dices el modelo, el equipamiento y, si lo tienes claro, el país de origen.'],
     ['Gestión', 'Nos encargamos de la compra, los trámites de aduanas y el transporte.'],
-    ['Entrega', 'Recibes el coche en tu domicilio, listo para conducir.'],
+    ['Entrega', 'Lo recoges en nuestras instalaciones o te lo llevamos a casa, listo para conducir.'],
   ],
   preguntas: [
     ['¿Cuánto tarda un encargo desde la solicitud hasta la entrega?', 'Depende del origen del coche y de la logística, pero trabajamos para que sea lo más rápido posible.'],
@@ -107,10 +108,10 @@ export const VENDE = {
 export const FINANCIACION = {
   h1: 'Financiación a tu medida',
   texto: 'Soluciones de crédito flexibles, adaptadas a tu situación. Calcula tu cuota y, si te encaja, pídenos el estudio: es gratis y sin compromiso.',
-  ventajas: ['Respuesta rápida y transparente', 'Condiciones adaptadas a tu perfil', 'Sin comisiones ocultas'],
-  documentos: ['DNI / NIE en vigor', 'Última nómina', 'Vida laboral'],
+  ventajas: ['Respuesta en menos de 24 horas', 'Cuotas realistas según tu caso', 'Sin comisiones ocultas'],
+  documentos: ['DNI / NIE en vigor', 'Última nómina', 'Recibo bancario con tu IBAN'],
   preguntas: [
-    ['¿Qué requisitos tengo que cumplir para pedir financiación?', 'Estar empadronado, presentar tu identificación y demostrar capacidad de pago con la nómina o la declaración de la renta.'],
+    ['¿Qué necesito para pedir financiación?', 'Normalmente basta con tu DNI, la última nómina y un recibo bancario donde aparezca tu IBAN. Te damos respuesta en menos de 24 horas.'],
     ['¿Puedo combinar la financiación con la importación de un coche?', 'Sí, tenemos planes de financiación que incluyen tanto la compra como los costes de importación.'],
     [`¿Hay algún coste adicional al financiar con ${N}?`, 'No: nuestras condiciones son claras y sin cargos ocultos. Cualquier gasto adicional se detalla antes de firmar.'],
   ],
@@ -120,12 +121,12 @@ export const SERVICIOS_PAGINA = {
   h1: 'Todo lo que necesitas para conducir sin preocupaciones',
   texto: `Desde la financiación hasta la entrega en tu puerta: en ${N} nos ocupamos de todo.`,
   preguntas: [
-    [`¿Cómo funciona la financiación con ${N}?`, 'Estudiamos tu perfil y te ofrecemos planes flexibles; la aprobación es rápida y sin sorpresas.'],
-    ['¿Qué incluye la garantía?', 'Cubre los componentes principales del vehículo durante el periodo acordado, con asistencia en caso de avería.'],
-    ['¿Puedo combinar la importación con la entrega puerta a puerta?', 'Sí, gestionamos todo el proceso, desde la compra en el extranjero hasta la entrega en tu domicilio.'],
+    [`¿Cómo funciona la financiación con ${N}?`, 'Estudiamos tu caso y te proponemos una cuota realista, con respuesta en menos de 24 horas y sin sorpresas.'],
+    ['¿Qué incluye la garantía?', '12 meses ampliables que cubren los componentes principales del coche, con cobertura en toda España.'],
+    ['¿Puedo combinar la importación con la entrega a domicilio?', 'Sí, gestionamos todo el proceso, desde la compra en el extranjero hasta la entrega en tu domicilio.'],
   ],
 };
 
 /** Frase de la garantía en la ficha de cada coche. */
 export const garantiaFicha = (meses) =>
-  meses ? `Revisado antes de la entrega y con garantía de ${meses} meses que cubre los componentes principales.` : 'Revisado antes de la entrega y con garantía que cubre los componentes principales.';
+  `Revisado antes de la entrega y con garantía de ${meses || 12} meses${meses ? '' : ' ampliable'} que cubre los componentes principales.`;
