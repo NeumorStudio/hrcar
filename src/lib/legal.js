@@ -2,18 +2,20 @@
 import { EMAIL, DIRECCION, TELEFONO_BONITO, TITULAR, NIF } from '../diseno2/datos-contacto.js';
 import { NEGOCIO, NOMBRE_WEB } from '../negocio.js';
 
+const DOMICILIO = NEGOCIO.domicilio || DIRECCION;
+
 const titular = `${TITULAR || NEGOCIO.nombre}${NIF ? ` (NIF ${NIF})` : ''}`;
 
 /** [id, título, [[subtítulo, párrafo], …]] */
 export const LEGALES = [
   ['aviso-legal', 'Aviso legal', [
     ['', 'En cumplimiento de la Ley 34/2002 de Servicios de la Sociedad de la Información y de Comercio Electrónico (LSSI-CE), se informa de los siguientes datos identificativos:'],
-    ['Titular del sitio web', `Titular: ${titular} · Domicilio: ${DIRECCION} · Email: ${EMAIL} · Teléfono: ${TELEFONO_BONITO}`],
+    ['Titular del sitio web', `Titular: ${titular} · Domicilio: ${DOMICILIO} · Email: ${EMAIL} · Teléfono: ${TELEFONO_BONITO}`],
     ['Propiedad intelectual', 'Todos los contenidos del sitio web (textos, imágenes, logotipos) están protegidos por derechos de propiedad intelectual e industrial.'],
     ['Información de los vehículos', 'Los precios, kilómetros y características de los vehículos son orientativos y pueden cambiar sin previo aviso. La disponibilidad se confirma siempre por el concesionario.'],
   ]],
   ['privacidad', 'Política de privacidad', [
-    ['Responsable', `${titular} · ${DIRECCION} · ${EMAIL} · ${TELEFONO_BONITO}.`],
+    ['Responsable', `${titular} · ${DOMICILIO} · ${EMAIL} · ${TELEFONO_BONITO}.`],
     ['Qué datos tratamos y para qué', 'Los datos que nos envías en los formularios (nombre, teléfono, email, datos de tu vehículo y fotos, si las adjuntas) se usan para responder a tu solicitud (información de un coche, pre-reserva, financiación, tasación o búsqueda a medida) y para hacerle seguimiento: guardamos tu contacto y tus mensajes en nuestra agenda de clientes.'],
     ['Legitimación', 'Tu consentimiento al enviar el formulario y, cuando corresponda, la aplicación de medidas precontractuales a petición tuya.'],
     ['Conservación', 'Mientras dure la relación o sea necesario para atender tu solicitud, y después durante los plazos legales aplicables.'],

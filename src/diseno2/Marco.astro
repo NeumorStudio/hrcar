@@ -80,7 +80,7 @@ const ldSeguro = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
       address: { '@type': 'PostalAddress', ...(NEGOCIO.direccion !== NEGOCIO.localidad ? { streetAddress: NEGOCIO.direccion } : {}), addressLocality: NEGOCIO.localidad, addressRegion: NEGOCIO.provincia, ...(NEGOCIO.codigoPostal ? { postalCode: NEGOCIO.codigoPostal } : {}), addressCountry: 'ES' },
       hasMap: MAPA,
       areaServed: NEGOCIO.provincia,
-      openingHours: NEGOCIO.horarioLd,
+      ...(NEGOCIO.horarioLd?.length ? { openingHours: NEGOCIO.horarioLd } : {}),
     })} />
   </head>
   <body class={claseCuerpo}>

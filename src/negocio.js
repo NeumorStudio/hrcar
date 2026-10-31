@@ -2,13 +2,13 @@
 //   - src/diseno2/contenido.js  (textos de la web: servicios, preguntas, portada…)
 //   - public/img/marca/         (logo e iconos) y public/img/v2/ (fotos de las secciones)
 //   - src/data/coches.json      (stock inicial: solo se carga en una base de datos nueva)
-// Plantilla de concesionarios de NeumorStudio. Cliente: H & R Car (Zaragoza).
+// Plantilla de concesionarios de NeumorStudio. Cliente: H & R Car (Albacete).
 
 export const NEGOCIO = {
   nombre: 'H & R Car',
   // dominio propio sin https ni www (p. ej. 'hrcar.es'). Vacío = todavía sin dominio: la web sale como «provisional»
   // y todas sus direcciones llevan noindex para que Google no indexe la dirección técnica.
-  dominio: '',
+  dominio: 'hrcar.es',
   provisional: 'https://hrcar.vercel.app',
 
   telefono: '+34685447955',
@@ -16,20 +16,19 @@ export const NEGOCIO = {
   whatsapp: '34685447955',
   email: 'albapelu967@gmail.com',
 
-  // PENDIENTE: dirección exacta. En la web de Arbicars solo ponía «zona de Zaragoza».
-  direccion: 'Zaragoza',
-  localidad: 'Zaragoza',
-  provincia: 'Zaragoza',
+  // dirección que se ve en la web (orientativa, para saber dónde ver los coches) y domicilio completo del aviso legal
+  direccion: 'C/ Mariana Pineda, 1 · Albacete',
+  domicilio: 'C/ Mariana Pineda, 1, ático 7, Albacete',
+  localidad: 'Albacete',
+  provincia: 'Albacete',
   codigoPostal: '',
-  // sin dirección exacta, el mapa abre la ciudad (buscar «H&R Car» en Maps lleva a otro concesionario de Zaragoza)
-  mapa: 'https://www.google.com/maps/search/?api=1&query=Zaragoza',
-  // PENDIENTE: confirmar. Es el horario que tenía en Arbicars, y parece un error (8:00–9:30 y 21:00–22:20).
-  horario: 'Lunes a sábado: 8:00–9:30 y 21:00–22:20 · Domingos cerrado',
-  horarioLd: ['Mo-Sa 08:00-09:30', 'Mo-Sa 21:00-22:20'],
+  mapa: 'https://www.google.com/maps/search/?api=1&query=Calle%20Mariana%20Pineda%201%2C%20Albacete',
+  // el dueño ha dado las horas, no los días: por eso no van días ni horario en los datos para Google (horarioLd)
+  horario: 'De 9:00 a 15:00 y de 16:30 a 21:00',
+  horarioLd: [],
 
-  // Titular legal (nombre y apellidos o razón social) y NIF: la LSSI obliga a publicarlos en el aviso legal.
-  // PENDIENTE: pedírselos al cliente. Mientras estén vacíos, el aviso legal pone el nombre comercial.
-  titular: '',
+  // Titular legal (nombre y apellidos o razón social) y NIF para el aviso legal. El dueño solo quiere nombre y dirección.
+  titular: 'Humberto Paredes Durán',
   nif: '',
 
   lema: 'Confianza y acompañamiento en cada paso',
