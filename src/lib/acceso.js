@@ -112,19 +112,30 @@ export async function usarEnlaceJuan(db, codigo, clave) {
 }
 
 // ------------------------------------------------------------------ acceso de soporte (NeumorStudio)
-// La contraseña de soporte la pone el estudio como secreto CLAVE_SOPORTE en el proyecto de Cloudflare Pages: la
-// primera vez que se entra con ella, se guarda su huella como acceso de soporte. Así el estudio no necesita nunca la
+// La contraseña de soporte la pone el estudio como secreto CLAVE_SOPORTE en el proyecto de Cloudflare Pages: al entrar
+// en el panel (con la clave que sea), si es nueva o ha cambiado, se guarda como contraseña de soporte. Así el estudio no necesita nunca la
 // contraseña del dueño. El dueño ve en Ajustes que NeumorStudio tiene acceso y puede quitarlo (y volver a permitirlo).
 const CLAVE_QUITADO = 'soporte_quitado';
 /** ¿Ha quitado el dueño el acceso de soporte? (mientras sí, CLAVE_SOPORTE no vuelve a activarlo) */
 export const soporteQuitado = async (db) => !!(await ajuste(db, CLAVE_QUITADO));
 
-/** Si hay CLAVE_SOPORTE en Cloudflare, no hay acceso de soporte y el dueño no lo ha quitado, lo activa con ella. */
+// Huella (PBKDF2, con su propia sal) de la CLAVE_SOPORTE con la que se activó: si en Cloudflare se pone otra, al
+// entrar se sustituye. Si el soporte cambia su contraseña desde el panel, la huella sigue igual y no se pisa.
+const CLAVE_ORIGEN = 'soporte_origen';
+
+/** Si hay CLAVE_SOPORTE en Cloudflare y el dueño no ha quitado el acceso, activa el soporte con ella (la primera vez
+ *  o cuando en Cloudflare se ha puesto una clave distinta). */
 export async function sembrarSoporte(db, env) {
-  const clave = env?.CLAVE_SOPORTE;
-  if (typeof clave !== 'string' || clave.length < MIN_LONGITUD) return false;
-  if ((await haySoporte(db)) || (await soporteQuitado(db))) return false;
+  const clave = typeof env?.CLAVE_SOPORTE === 'string' ? env.CLAVE_SOPORTE.trim() : '';
+  if (clave.length < MIN_LONGITUD) return false;
+  if (await soporteQuitado(db)) return false;
+  try {
+    const o = JSON.parse((await ajuste(db, CLAVE_ORIGEN)) || 'null');
+    if (o && (await haySoporte(db)) && iguales(await derivar(clave, deHex(o.s)), deHex(o.h))) return false; // ya está
+  } catch {}
   await guardarContrasena(db, clave, 'soporte'); // con secreto_sesion ya creado, las sesiones del dueño siguen
+  const sal = crypto.getRandomValues(new Uint8Array(16));
+  await guardarAjuste(db, CLAVE_ORIGEN, JSON.stringify({ s: aHex(sal), h: aHex(await derivar(clave, sal)) }));
   return true;
 }
 
@@ -133,6 +144,7 @@ export async function quitarSoporte(db) {
   await guardarAjuste(db, CLAVE_ENLACE, null); // sin soporte, tampoco vale un enlace que creara el soporte
   await guardarAjuste(db, USUARIOS.soporte.sal, null);
   await guardarAjuste(db, USUARIOS.soporte.hash, null);
+  await guardarAjuste(db, CLAVE_ORIGEN, null);
   await guardarAjuste(db, CLAVE_QUITADO, '1');
 }
 
