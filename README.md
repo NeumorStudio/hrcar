@@ -1,6 +1,6 @@
 # H & R Car — web y panel
 
-Web del concesionario **H & R Car** (Zaragoza) con su panel de administración en `/admin`. Es la **plantilla de
+Web del concesionario **H & R Car** (Albacete), en **hrcar.es**, con su panel de administración en `/admin`. Es la **plantilla de
 concesionarios de NeumorStudio**: el mismo código que LIDIAUTO, con el diseño propio del estudio y todo lo que cambia
 de un cliente a otro sacado a unos pocos archivos.
 
@@ -23,8 +23,9 @@ Para un concesionario nuevo: copiar este repo, cambiar esos archivos y publicar.
 - **Vercel** (proyecto `hrcar`, solo `vercel/vercel.json`): la entrada pública. Reenvía cada petición a
   `hrcar.pages.dev`, para que los bloqueos de IPs de Cloudflare que LaLiga ordena los días de partido no dejen la web
   sin cargar. Las cuentas son las de NeumorStudio.
-- **Sin dominio propio** (`NEGOCIO.dominio` vacío) todas las direcciones llevan `noindex` y el mapa del sitio no se
-  anuncia. Al conectar el dominio: ponerlo en `src/negocio.js`, publicar y añadirlo al proyecto de Vercel.
+- **Dominio** `hrcar.es`: comprado en Hostinger (cuenta de NeumorStudio) y conectado al proyecto de Vercel. Sin dominio
+  (`NEGOCIO.dominio` vacío) todas las direcciones llevan `noindex` y el mapa del sitio no se anuncia; al conectar uno:
+  ponerlo en `src/negocio.js`, publicar y añadirlo al proyecto de Vercel.
 - **Formularios**: se guardan en el panel (Mensajes), avisan al móvil del dueño (si activa los avisos) y, con Resend
   configurado, le llegan por correo. La cuenta de Resend es compartida con la peluquería: por eso hay un **tope de
   correos al día** (`NEGOCIO.topeCorreosDia`); pasado el tope los mensajes siguen entrando en el panel y en el móvil.
@@ -40,13 +41,20 @@ Variables del proyecto de Pages (opcionales, para el correo):
 
 ## Publicar
 
+**Automático**: cada push a `main` lo publica GitHub Actions (`.github/workflows/publicar.yml`) en el proyecto de Pages
+de la cuenta de NeumorStudio. Usa el secreto `CLOUDFLARE_API_TOKEN` de la organización NeumorStudio de GitHub, que
+solo llega a repos públicos con el plan gratuito: si este repo se hace privado, hay que ponerlo como secreto del repo.
+
+A mano, si hace falta:
+
 ```bash
 npm ci
 npm run build      # deja la web en dist/ con el Worker en un solo archivo (dist/_worker.js)
 ```
 
 Después, en Cloudflare → Workers y Pages → `hrcar` → *Create deployment* → subir la carpeta `dist` (o un zip con su
-contenido), o `npx wrangler pages deploy dist --project-name hrcar`.
+contenido), o `npx wrangler pages deploy dist --project-name hrcar` **sin** `wrangler.toml` (ese archivo es solo para
+probar en local: con él, wrangler toma sus IDs «local» por buenos y la publicación falla).
 
 ## Primer acceso al panel
 
