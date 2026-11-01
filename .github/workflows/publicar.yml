@@ -1,0 +1,31 @@
+# Publica la web en Cloudflare Pages (cuenta de NeumorStudio) cada vez que se sube algo a main.
+# Así cualquiera del estudio con acceso al repo (Stark, Carlos) cambia la web con un push, sin entrar en Cloudflare.
+# Necesita el secreto CLOUDFLARE_API_TOKEN (organización NeumorStudio → Settings → Secrets and variables → Actions):
+# un token de Cloudflare con permiso «Account → Cloudflare Pages → Edit» sobre la cuenta de NeumorStudio.
+name: Publicar en Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Subir a Cloudflare Pages (hrcar)
+        run: npx --yes wrangler@4 pages deploy dist --project-name=hrcar --branch=main --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a67f6a32d28dd65d954584891e5d8b9c
