@@ -17,15 +17,19 @@ jobs:
   publicar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build
       - name: Subir a Cloudflare Pages (hrcar)
-        run: npx --yes wrangler@4 pages deploy dist --project-name=hrcar --branch=main --commit-dirty=true
+        # wrangler.toml solo sirve para probar en local (sus IDs son "local"). Se quita aquí
+        # para que la publicación use las vinculaciones DB y FOTOS del proyecto en Cloudflare.
+        run: |
+          rm -f wrangler.toml
+          npx --yes wrangler@4 pages deploy dist --project-name=hrcar --branch=main --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: a67f6a32d28dd65d954584891e5d8b9c
