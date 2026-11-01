@@ -111,11 +111,33 @@ export async function usarEnlaceJuan(db, codigo, clave) {
   return true;
 }
 
+// ------------------------------------------------------------------ acceso de soporte (NeumorStudio)
+// La contraseña de soporte la pone el estudio como secreto CLAVE_SOPORTE en el proyecto de Cloudflare Pages: la
+// primera vez que se entra con ella, se guarda su huella como acceso de soporte. Así el estudio no necesita nunca la
+// contraseña del dueño. El dueño ve en Ajustes que NeumorStudio tiene acceso y puede quitarlo (y volver a permitirlo).
+const CLAVE_QUITADO = 'soporte_quitado';
+/** ¿Ha quitado el dueño el acceso de soporte? (mientras sí, CLAVE_SOPORTE no vuelve a activarlo) */
+export const soporteQuitado = async (db) => !!(await ajuste(db, CLAVE_QUITADO));
+
+/** Si hay CLAVE_SOPORTE en Cloudflare, no hay acceso de soporte y el dueño no lo ha quitado, lo activa con ella. */
+export async function sembrarSoporte(db, env) {
+  const clave = env?.CLAVE_SOPORTE;
+  if (typeof clave !== 'string' || clave.length < MIN_LONGITUD) return false;
+  if ((await haySoporte(db)) || (await soporteQuitado(db))) return false;
+  await guardarContrasena(db, clave, 'soporte'); // con secreto_sesion ya creado, las sesiones del dueño siguen
+  return true;
+}
+
+/** El dueño quita el acceso de soporte: se borra, se cierran sus sesiones y CLAVE_SOPORTE deja de activarlo. */
 export async function quitarSoporte(db) {
   await guardarAjuste(db, CLAVE_ENLACE, null); // sin soporte, tampoco vale un enlace que creara el soporte
   await guardarAjuste(db, USUARIOS.soporte.sal, null);
   await guardarAjuste(db, USUARIOS.soporte.hash, null);
+  await guardarAjuste(db, CLAVE_QUITADO, '1');
 }
+
+/** El dueño vuelve a permitir el acceso: la próxima vez que el estudio entre con CLAVE_SOPORTE, queda activado. */
+export const permitirSoporte = (db) => guardarAjuste(db, CLAVE_QUITADO, null);
 
 /** Devuelve { ok, usuario } o { ok: false, bloqueado: minutos, quedan } */
 export async function comprobarContrasena(db, clave, soloUsuario = null) {

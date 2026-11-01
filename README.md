@@ -58,9 +58,15 @@ probar en local: con él, wrangler toma sus IDs «local» por buenos y la public
 
 ## Primer acceso al panel
 
-La primera vez que se abre `/admin` pide crear la contraseña: la pone NeumorStudio nada más publicar. Después, en
-Ajustes: **Acceso de soporte** (contraseña propia del estudio) y **Contraseña del dueño, sin pasársela** (enlace de un
-solo uso por WhatsApp para que el dueño ponga la suya; al usarlo se cierran las demás sesiones).
+La primera vez que se abre `/admin` pide crear la contraseña: la pone NeumorStudio nada más publicar. Después:
+
+- **Acceso de soporte (NeumorStudio)**: en Cloudflare → Workers y Pages → `hrcar` → Settings → Variables and Secrets,
+  un secreto `CLAVE_SOPORTE` (mínimo 10 caracteres; hace falta publicar otra vez para que lo vea). La primera vez que
+  se entra en el panel con esa contraseña, queda activado como **Soporte**. No hace falta saber la del dueño.
+- **Enlace para el dueño**: entrando como Soporte, Ajustes → «Contraseña del dueño, sin pasársela» crea un enlace de un
+  solo uso para que el dueño ponga su contraseña por WhatsApp. Al usarlo se cierran las demás sesiones.
+- **Lo que ve el dueño**: en Ajustes solo «Acceso de NeumorStudio», que le dice que el estudio tiene contraseña propia y
+  le deja quitar ese acceso (y volver a permitirlo). Mientras lo tenga quitado, `CLAVE_SOPORTE` no vuelve a activarlo.
 
 ## En local
 

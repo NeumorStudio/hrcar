@@ -2,7 +2,7 @@
 import { NEGOCIO, SITIO, NOMBRE_WEB } from '../../negocio.js';
 import Admin from '../../layouts/Admin.astro';
 import { ajuste } from '../../lib/datos.js';
-import { MIN_LONGITUD, haySoporte, enlaceJuanPendiente, DIAS_ENLACE } from '../../lib/acceso.js';
+import { MIN_LONGITUD, haySoporte, soporteQuitado, enlaceJuanPendiente, DIAS_ENLACE } from '../../lib/acceso.js';
 import { leerOcultos } from '../../lib/secciones.js';
 import { COSTES_POR_DEFECTO } from '../../lib/importacion.js';
 import { usoFotos } from '../../lib/fotos.js';
@@ -12,7 +12,8 @@ const costes = { ...COSTES_POR_DEFECTO, ...JSON.parse((await ajuste(env.DB, 'cos
 const correo = (await ajuste(env.DB, 'correo_avisos')) || env.CORREO_DESTINO || NEGOCIO.email;
 const correoListo = !!env.RESEND_API_KEY;
 const usuario = Astro.locals.usuario?.usuario || 'juan';
-const soporte = await haySoporte(env.DB);
+const esSoporte = usuario === 'soporte';
+const [soporte, quitado] = await Promise.all([haySoporte(env.DB), soporteQuitado(env.DB)]);
 const [enlacePendiente, ocultos] = await Promise.all([enlaceJuanPendiente(env.DB), leerOcultos(env.DB).catch(() => [])]);
 const fechaCorta = (ms) => new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' });
 const [uso, liberables] = await Promise.all([usoFotos(env.DB).catch(() => null), vendidosConFotos(env.DB, 180).catch(() => [])]);
@@ -71,33 +72,44 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
       <button class="boton" type="submit">Cambiar</button>
     </form>
   </div>
-  <div class="caja">
-    <h2>Acceso de soporte</h2>
-    <p class="suave">Una segunda contraseña, distinta de la del dueño, para quien le lleva la web: así puede entrar a revisar o arreglar algo sin conocer la contraseña del dueño. {soporte ? 'Está activado.' : 'No está activado.'}</p>
-    <form data-api="/api/admin/ajustes" data-aviso={soporte ? 'Contraseña de soporte cambiada' : 'Acceso de soporte activado'} data-limpiar data-recargar>
-      <input type="hidden" name="accion" value="soporte" />
-      <label class="campo"><span>Tu contraseña actual</span><input type="password" name="actual" required autocomplete="current-password" /></label>
-      <label class="campo"><span>{soporte ? 'Nueva contraseña de soporte' : 'Contraseña de soporte'}</span><input type="password" name="clave" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
-      <label class="campo"><span>Repítela</span><input type="password" name="clave2" minlength={MIN_LONGITUD} required autocomplete="new-password" /></label>
-      <div class="botonera">
-        <button class="boton" type="submit">{soporte ? 'Cambiar' : 'Activar'}</button>
-        {soporte && usuario === 'juan' && <button class="boton peligro" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"soporte_quitar"}' data-confirmar="¿Quitar el acceso de soporte?" data-aviso="Acceso de soporte quitado" data-recargar>Quitar acceso de soporte</button>}
-      </div>
-    </form>
-  </div>
-  <div class="caja" id="enlace-juan">
-    <h2>Contraseña del dueño, sin pasársela</h2>
-    <p class="suave">Crea un enlace para que el dueño ponga su propia contraseña desde el móvil. Sirve una sola vez y caduca en {DIAS_ENLACE} días. Cuando lo use, se cierran las sesiones abiertas (también esta): se vuelve a entrar con la contraseña de cada uno.</p>
-    {enlacePendiente && <p class="suave" data-enlace-pendiente>Hay un enlace sin usar hasta el {fechaCorta(enlacePendiente)}. Si creas otro, el anterior deja de valer.</p>}
-    <button class="boton" type="button" data-enlace-juan data-sitio={SITIO} data-wa={NEGOCIO.whatsapp}>{enlacePendiente ? 'Crear un enlace nuevo' : 'Crear enlace para el dueño'}</button>
-    <div data-enlace-juan-listo hidden style="margin-top:14px">
-      <label class="campo"><span>Enlace para el dueño</span><input type="text" readonly data-enlace-juan-url /></label>
-      <div class="botonera">
-        <a class="boton" data-enlace-juan-wa target="_blank" rel="noopener">Enviar por WhatsApp al dueño</a>
-        <button class="boton secundario" type="button" data-enlace-juan-copiar>Copiar enlace</button>
+  {esSoporte ? (
+    <div class="caja">
+      <h2>Acceso de soporte</h2>
+      <p class="suave">Has entrado con la contraseña de soporte de NeumorStudio (la cambias arriba, en «Cambiar contraseña»). El dueño ve en sus Ajustes que tenéis acceso y puede quitarlo; esta parte y el enlace de abajo solo los ves tú.</p>
+    </div>
+  ) : (
+    <div class="caja" id="acceso-neumorstudio">
+      <h2>Acceso de NeumorStudio</h2>
+      {soporte ? (
+        <>
+          <p class="suave">NeumorStudio, que te lleva la web, tiene su propia contraseña para entrar a revisar o arreglar algo si hace falta. No conoce la tuya ni puede cambiarla.</p>
+          <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"soporte_quitar"}' data-confirmar="¿Quitar el acceso de NeumorStudio? No podrán entrar a ayudarte hasta que lo vuelvas a permitir." data-aviso="Acceso de NeumorStudio quitado" data-recargar>Quitar el acceso de NeumorStudio</button>
+        </>
+      ) : quitado ? (
+        <>
+          <p class="suave">Has quitado el acceso de NeumorStudio: no pueden entrar en tu panel. Si algún día necesitas que te ayuden desde dentro, vuelve a permitirlo.</p>
+          <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"soporte_permitir"}' data-aviso="Acceso de NeumorStudio permitido" data-recargar>Volver a permitirlo</button>
+        </>
+      ) : (
+        <p class="suave">Ahora mismo NeumorStudio no tiene acceso a tu panel.</p>
+      )}
+    </div>
+  )}
+  {esSoporte && (
+    <div class="caja" id="enlace-juan">
+      <h2>Contraseña del dueño, sin pasársela</h2>
+      <p class="suave">Crea un enlace para que el dueño ponga su propia contraseña desde el móvil. Sirve una sola vez y caduca en {DIAS_ENLACE} días. Cuando lo use, se cierran las sesiones abiertas (también esta): se vuelve a entrar con la contraseña de cada uno.</p>
+      {enlacePendiente && <p class="suave" data-enlace-pendiente>Hay un enlace sin usar hasta el {fechaCorta(enlacePendiente)}. Si creas otro, el anterior deja de valer.</p>}
+      <button class="boton" type="button" data-enlace-juan data-sitio={SITIO} data-wa={NEGOCIO.whatsapp}>{enlacePendiente ? 'Crear un enlace nuevo' : 'Crear enlace para el dueño'}</button>
+      <div data-enlace-juan-listo hidden style="margin-top:14px">
+        <label class="campo"><span>Enlace para el dueño</span><input type="text" readonly data-enlace-juan-url /></label>
+        <div class="botonera">
+          <a class="boton" data-enlace-juan-wa target="_blank" rel="noopener">Enviar por WhatsApp al dueño</a>
+          <button class="boton secundario" type="button" data-enlace-juan-copiar>Copiar enlace</button>
+        </div>
       </div>
     </div>
-  </div>
+  )}
   <div class="caja" id="copia">
     <h2>Copia de seguridad</h2>
     <p class="suave">Descarga en un archivo todos los coches, clientes, mensajes, tareas y ventas. Guárdalo en el ordenador o en tu correo de vez en cuando (una vez al mes, por ejemplo). Las fotos no van dentro: siguen en la web.</p>
