@@ -36,7 +36,7 @@ export const NEGOCIO = {
   dueno: 'el dueño',
   duenoNombre: 'Dueño',
 
-  logo: '/img/marca/logo.webp', // redondo, con fondo blanco propio: vale en la cabecera oscura y en el panel claro
+  logo: '/img/marca/logo-cromado.webp', // redondo, cromado sobre gris (el que eligió Humberto); nombre nuevo para saltarse la caché de /img
   // cómo se escribe la marca al lado del logo en la cabecera: [parte blanca, parte de color]
   marca: ['H&R', 'Car'],
 
