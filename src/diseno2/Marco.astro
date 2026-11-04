@@ -77,7 +77,7 @@ const ldSeguro = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
       image: SITIO + '/img-web/nosotros.webp',
       logo: SITIO + LOGO,
       priceRange: '€€',
-      address: { '@type': 'PostalAddress', ...(NEGOCIO.direccion !== NEGOCIO.localidad ? { streetAddress: NEGOCIO.direccion } : {}), addressLocality: NEGOCIO.localidad, addressRegion: NEGOCIO.provincia, ...(NEGOCIO.codigoPostal ? { postalCode: NEGOCIO.codigoPostal } : {}), addressCountry: 'ES' },
+      address: { '@type': 'PostalAddress', ...(NEGOCIO.calle || NEGOCIO.direccion !== NEGOCIO.localidad ? { streetAddress: NEGOCIO.calle || NEGOCIO.direccion } : {}), addressLocality: NEGOCIO.localidad, addressRegion: NEGOCIO.provincia, ...(NEGOCIO.codigoPostal ? { postalCode: NEGOCIO.codigoPostal } : {}), addressCountry: 'ES' },
       hasMap: MAPA,
       areaServed: NEGOCIO.provincia,
       ...(NEGOCIO.horarioLd?.length ? { openingHours: NEGOCIO.horarioLd } : {}),

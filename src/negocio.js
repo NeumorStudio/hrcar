@@ -19,6 +19,8 @@ export const NEGOCIO = {
   // dirección que se ve en la web (orientativa, para saber dónde ver los coches) y domicilio completo del aviso legal
   direccion: 'C/ Mariana Pineda, 1 · Albacete',
   domicilio: 'C/ Mariana Pineda, 1, ático 7, Albacete',
+  // solo calle y número, sin la ciudad: es lo que va en los datos para Google (streetAddress). Vacío = se usa «direccion».
+  calle: 'C/ Mariana Pineda, 1',
   localidad: 'Albacete',
   provincia: 'Albacete',
   codigoPostal: '',
