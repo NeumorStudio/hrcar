@@ -12,31 +12,31 @@ En {{ciudad}}, a {{fecha}}.
 
 De una parte, {{empresa_nombre}}, con NIF {{empresa_nif}} y domicilio en {{empresa_domicilio}}, representada por {{empresa_representante}} (en adelante, «el INTERMEDIARIO»).
 
-De otra parte, {{vendedor_nombre}}, con DNI/NIE {{vendedor_dni}} y domicilio en {{vendedor_domicilio}}, teléfono {{vendedor_telefono}} (en adelante, «el PROPIETARIO»).
+De otra parte, {{vendedor_nombre}}, con DNI/NIE {{vendedor_dni}} y domicilio en {{vendedor_domicilio}}, teléfono {{vendedor_telefono}} (en adelante, «el VENDEDOR»).
 
 ## EXPONEN
 
-Que el PROPIETARIO es titular del vehículo {{coche}}, matrícula {{matricula}}, con {{km}} kilómetros, y quiere venderlo a través del INTERMEDIARIO.
+Que el VENDEDOR es titular del vehículo {{coche}}, matrícula {{matricula}}, con {{km}} kilómetros, y quiere venderlo a través del INTERMEDIARIO.
 
 ## CLÁUSULAS
 
-1. Encargo. El PROPIETARIO encarga al INTERMEDIARIO buscar comprador para el vehículo y gestionar su venta.
+1. Encargo. El VENDEDOR encarga al INTERMEDIARIO buscar comprador para el vehículo y gestionar su venta.
 
-2. Precio para el propietario. El PROPIETARIO recibirá {{precio_neto}} por la venta del vehículo. El INTERMEDIARIO podrá ofrecerlo al precio que considere oportuno, y la diferencia entre el precio final de venta y esa cantidad será su retribución.
+2. Precio para el vendedor. El VENDEDOR recibirá {{precio_neto}} por la venta del vehículo. El INTERMEDIARIO podrá ofrecerlo al precio que considere oportuno, y la diferencia entre el precio final de venta y esa cantidad será su retribución.
 
-3. Exclusividad y plazo. Durante {{plazo_dias}} días desde la firma, el PROPIETARIO no venderá el vehículo por su cuenta ni a través de terceros, y retirará en las 24 horas siguientes los anuncios que tenga publicados.
+3. Exclusividad y plazo. Durante {{plazo_dias}} días desde la firma, el VENDEDOR no venderá el vehículo por su cuenta ni a través de terceros, y retirará en las 24 horas siguientes los anuncios que tenga publicados.
 
-4. Anuncios y fotografías. El PROPIETARIO autoriza al INTERMEDIARIO a anunciar el vehículo y a usar las fotografías y la descripción de su anuncio.
+4. Anuncios y fotografías. El VENDEDOR autoriza al INTERMEDIARIO a anunciar el vehículo y a usar las fotografías y la descripción de su anuncio.
 
-5. Custodia y visitas. El vehículo seguirá en poder del PROPIETARIO, que facilitará que los interesados que le indique el INTERMEDIARIO lo vean y lo prueben.
+5. Custodia y visitas. El vehículo seguirá en poder del VENDEDOR, que facilitará que los interesados que le indique el INTERMEDIARIO lo vean y lo prueben.
 
-6. Estado y documentación. El PROPIETARIO declara que la documentación está en regla, que el vehículo no tiene cargas ni embargos y que los kilómetros indicados son reales.
+6. Estado y documentación. El VENDEDOR declara que la documentación está en regla, que el vehículo no tiene cargas ni embargos y que los kilómetros indicados son reales.
 
-7. Pago y entrega. El PROPIETARIO cobrará el precio acordado en el momento de la venta, antes de entregar el vehículo, las llaves y la documentación. El cambio de titularidad se hará directamente a nombre del comprador.
+7. Pago y entrega. El VENDEDOR cobrará el precio acordado en el momento de la venta, antes de entregar el vehículo, las llaves y la documentación. El cambio de titularidad se hará directamente a nombre del comprador.
 
 8. Fin del acuerdo. Si pasado el plazo no se ha vendido el vehículo, el acuerdo termina sin coste para ninguna de las partes, salvo que lo prorroguen por escrito.
 
-9. Protección de datos. Los datos del PROPIETARIO se usarán solo para gestionar esta venta y se conservarán durante los plazos legales. Puede ejercer sus derechos escribiendo al INTERMEDIARIO.
+9. Protección de datos. Los datos del VENDEDOR se usarán solo para gestionar esta venta y se conservarán durante los plazos legales. Puede ejercer sus derechos escribiendo al INTERMEDIARIO.
 
 Y en prueba de conformidad, las dos partes firman este acuerdo de forma electrónica.`;
 
@@ -69,11 +69,26 @@ export function rellenar(plantilla, valores) {
 }
 /** Bloques del texto: [{ tipo: 'titulo'|'apartado'|'parrafo', texto }]. */
 export function bloques(texto) {
-  return String(texto).split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean).map((b) => {
-    if (b.startsWith('# ')) return { tipo: 'titulo', texto: b.slice(2).trim() };
-    if (b.startsWith('## ')) return { tipo: 'apartado', texto: b.slice(3).trim() };
-    return { tipo: 'parrafo', texto: b.replace(/\s*\n\s*/g, ' ') };
-  });
+  const salida = [];
+  for (const b of String(texto).split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)) {
+    if (b.startsWith('# ')) { salida.push({ tipo: 'titulo', texto: b.slice(2).trim() }); continue; }
+    if (b.startsWith('## ')) { salida.push({ tipo: 'apartado', texto: b.slice(3).trim() }); continue; }
+    // dentro de un bloque, las líneas que empiezan por «- » o «• » son una lista; el resto, párrafo
+    let parrafo = [];
+    let lista = [];
+    const cerrar = () => {
+      if (parrafo.length) salida.push({ tipo: 'parrafo', texto: parrafo.join(' ') });
+      if (lista.length) salida.push({ tipo: 'lista', items: lista });
+      parrafo = []; lista = [];
+    };
+    for (const linea of b.split('\n').map((l) => l.trim()).filter(Boolean)) {
+      const item = /^[-•●]\s+(.*)$/.exec(linea);
+      if (item) { if (parrafo.length && !lista.length) { salida.push({ tipo: 'parrafo', texto: parrafo.join(' ') }); parrafo = []; } lista.push(item[1]); }
+      else { if (lista.length) cerrar(); parrafo.push(linea); }
+    }
+    cerrar();
+  }
+  return salida;
 }
 
 // ------------------------------------------------------------------ DNI, NIE y CIF

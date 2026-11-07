@@ -28,12 +28,13 @@ export async function ajustesContrato(db) {
     empresa_nombre: g.empresa_nombre || MARCA.nombre,
     empresa_nif: g.empresa_nif || '',
     empresa_domicilio: g.empresa_domicilio || MARCA.domicilio,
-    empresa_representante: g.empresa_representante || MARCA.titular || '',
+    empresa_representante: g.empresa_representante || MARCA.representante || MARCA.titular || '',
     ciudad: g.ciudad || MARCA.localidad,
     plazo_dias: Number(g.plazo_dias) || 60,
     dias_enlace: Number(g.dias_enlace) || 14,
-    plantilla: (await ajuste(db, 'contrato_plantilla')) || PLANTILLA_PROVISIONAL,
-    plantilla_propia: !!(await ajuste(db, 'contrato_plantilla')),
+    plantilla: (await ajuste(db, 'contrato_plantilla')) || MARCA.plantilla || PLANTILLA_PROVISIONAL,
+    plantilla_propia: !!(await ajuste(db, 'contrato_plantilla')) || !!MARCA.plantilla,
+    plantilla_editada: !!(await ajuste(db, 'contrato_plantilla')),
     firma: (await ajuste(db, 'contrato_firma')) || null,
   };
 }

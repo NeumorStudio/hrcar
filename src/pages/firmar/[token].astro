@@ -53,6 +53,8 @@ const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
       .contrato h2 { font-size: 1.15rem; text-align: center; margin: 4px 0 14px; }
       .contrato h3 { font-size: 0.98rem; margin: 18px 0 8px; }
       .contrato p { margin: 0 0 10px; }
+      .contrato ul { margin: 0 0 12px; padding-left: 22px; }
+      .contrato li { margin-bottom: 4px; }
       .hueco { background: var(--amarillo); border-radius: 4px; padding: 0 4px; font-weight: 600; }
       .hueco.lleno { background: #d1fae5; }
       label { display: block; margin-bottom: 14px; }
@@ -100,7 +102,8 @@ const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
       {k && k.estado !== 'Anulado' && k.estado !== 'Caducado' && (
         <article class="caja contrato">
           {bloques(texto).map((b) => {
-            const contenido = partes(b.texto).map((p, i) => (i % 2 === 1 ? <span class="hueco" data-hueco={p}>{k.datos?.[p] || '…'}</span> : p));
+            const contenido = b.tipo === 'lista' ? null : partes(b.texto).map((p, i) => (i % 2 === 1 ? <span class="hueco" data-hueco={p}>{k.datos?.[p] || '…'}</span> : p));
+            if (b.tipo === 'lista') return <ul>{b.items.map((it) => <li>{partes(it).map((p, i) => (i % 2 === 1 ? <span class="hueco" data-hueco={p}>{k.datos?.[p] || '…'}</span> : p))}</li>)}</ul>;
             return b.tipo === 'titulo' ? <h2>{contenido}</h2> : b.tipo === 'apartado' ? <h3>{contenido}</h3> : <p>{contenido}</p>;
           })}
         </article>

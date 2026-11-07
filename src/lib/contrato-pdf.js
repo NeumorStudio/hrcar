@@ -70,35 +70,48 @@ export async function pdfContrato(c) {
   nueva();
   for (const b of bloques(c.texto)) {
     if (b.tipo === 'titulo') escribir(b.texto, { fuente: negrita, tam: 14, interlinea: 18, despues: 14, centrado: true });
-    else if (b.tipo === 'apartado') escribir(b.texto, { fuente: negrita, tam: 11, antes: 4, despues: 6 });
-    else escribir(b.texto, { despues: 8, interlinea: 14.5 });
+    else if (b.tipo === 'apartado') escribir(b.texto, { fuente: negrita, tam: 11, antes: 2, despues: 5 });
+    else if (b.tipo === 'lista') {
+      for (const item of b.items) {
+        const lineas = partirLineas(item, normal, 10.3, ancho - 16);
+        lineas.forEach((l, i) => {
+          sitio(13.8);
+          if (i === 0) pagina.drawText('•', { x: M + 4, y: y - 10.3, size: 10.3, font: normal });
+          pagina.drawText(l, { x: M + 16, y: y - 10.3, size: 10.3, font: normal });
+          y -= 13.8;
+        });
+        y -= 1;
+      }
+      y -= 5;
+    }
+    else escribir(b.texto, { tam: 10.3, despues: 6, interlinea: 13.8 });
   }
 
   // firmas
-  sitio(152);
+  sitio(128);
   y -= 6;
   const col = (ancho - 24) / 2;
   const caja = async (x, titulo, nombre, detalle, bytes) => {
     pagina.drawText(paraPdf(titulo), { x, y: y - 10, size: 9, font: negrita, color: gris });
-    pagina.drawRectangle({ x, y: y - 112, width: col, height: 92, borderColor: rgb(0.8, 0.8, 0.83), borderWidth: 0.8 });
+    pagina.drawRectangle({ x, y: y - 90, width: col, height: 72, borderColor: rgb(0.8, 0.8, 0.83), borderWidth: 0.8 });
     if (bytes) {
       try {
         const img = await doc.embedPng(bytes);
-        const k = Math.min((col - 16) / img.width, 80 / img.height);
-        pagina.drawImage(img, { x: x + (col - img.width * k) / 2, y: y - 106, width: img.width * k, height: img.height * k });
+        const k = Math.min((col - 16) / img.width, 62 / img.height);
+        pagina.drawImage(img, { x: x + (col - img.width * k) / 2, y: y - 86, width: img.width * k, height: img.height * k });
       } catch { /* firma ilegible: queda el recuadro */ }
     }
-    pagina.drawText(paraPdf(nombre || ''), { x, y: y - 126, size: 9.5, font: normal });
-    if (detalle) pagina.drawText(paraPdf(detalle), { x, y: y - 139, size: 8.5, font: normal, color: gris });
+    pagina.drawText(paraPdf(nombre || ''), { x, y: y - 103, size: 9.5, font: normal });
+    if (detalle) pagina.drawText(paraPdf(detalle), { x, y: y - 115, size: 8.5, font: normal, color: gris });
   };
-  await caja(M, 'EL INTERMEDIARIO', c.empresa?.representante || c.empresa?.nombre, c.empresa?.representante && c.empresa?.nombre ? `por ${c.empresa.nombre}` : '', c.firmaEmpresa);
-  await caja(M + col + 24, 'EL PROPIETARIO', c.firmante?.nombre, c.firmante?.dni ? `DNI/NIE ${c.firmante.dni}` : '', c.firmaVendedor);
-  y -= 150;
+  await caja(M, 'FIRMA DEL ASESOR', c.empresa?.representante || c.empresa?.nombre, c.empresa?.representante && c.empresa?.nombre ? `por ${c.empresa.nombre}` : '', c.firmaEmpresa);
+  await caja(M + col + 24, 'FIRMA DEL VENDEDOR', c.firmante?.nombre, c.firmante?.dni ? `DNI/NIE ${c.firmante.dni}` : '', c.firmaVendedor);
+  y -= 124;
 
   // registro de la firma electrónica
   nueva();
   escribir('Registro de la firma electrónica', { fuente: negrita, tam: 13, interlinea: 17, despues: 10 });
-  escribir('Este documento se firmó de forma electrónica desde un enlace personal enviado al propietario. Estos son los datos que se registraron en el momento de la firma:', { tam: 9.5, interlinea: 13, despues: 10, color: gris });
+  escribir('Este documento se firmó de forma electrónica desde un enlace personal enviado al vendedor. Estos son los datos que se registraron en el momento de la firma:', { tam: 9.5, interlinea: 13, despues: 10, color: gris });
   for (const [k, v] of c.registro) {
     sitio(30);
     pagina.drawText(paraPdf(k), { x: M, y: y - 9, size: 8.5, font: negrita, color: gris });

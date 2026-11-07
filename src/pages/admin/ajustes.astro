@@ -44,7 +44,7 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
       <input type="hidden" name="accion" value="contrato" />
       <div class="dos">
         <label class="campo"><span>Tu nombre o razón social</span><input type="text" name="empresa_nombre" value={contrato.empresa_nombre} required /></label>
-        <label class="campo"><span>NIF/CIF</span><input type="text" name="empresa_nif" value={contrato.empresa_nif} style="text-transform:uppercase" /></label>
+        <label class="campo"><span>NIF/CIF <span class="nota">(o tu DNI, si eres autónomo)</span></span><input type="text" name="empresa_nif" value={contrato.empresa_nif} style="text-transform:uppercase" /></label>
         <label class="campo"><span>Domicilio</span><input type="text" name="empresa_domicilio" value={contrato.empresa_domicilio} /></label>
         <label class="campo"><span>Quién firma <span class="nota">(nombre y apellidos)</span></span><input type="text" name="empresa_representante" value={contrato.empresa_representante} /></label>
         <label class="campo"><span>Ciudad donde se firma</span><input type="text" name="ciudad" value={contrato.ciudad} /></label>
@@ -75,7 +75,7 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
       </details>
       <div class="botonera">
         <button class="boton" type="submit">Guardar el contrato</button>
-        {contrato.plantilla_propia && <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"plantilla","restaurar":true}' data-recargar data-confirmar="¿Volver a la plantilla provisional? Se pierde el texto que has puesto.">Volver a la provisional</button>}
+        {contrato.plantilla_editada && <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"plantilla","restaurar":true}' data-recargar data-confirmar="¿Volver al texto de serie? Se pierden los cambios que has hecho.">Volver al texto de serie</button>}
       </div>
       <p class="suave" style="margin-top:8px">Los contratos ya enviados no cambian: cada uno guarda el texto con el que se mandó.</p>
     </form>
