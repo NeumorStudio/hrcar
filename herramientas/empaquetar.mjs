@@ -1,7 +1,7 @@
 // Tras `astro build`: deja el Worker en un solo archivo (dist/_worker.js) para poder
 // publicarlo arrastrando la carpeta dist al panel de Cloudflare Pages, y repasa _routes.json.
 import { build } from 'esbuild';
-import { rmSync, renameSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { rmSync, renameSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -44,6 +44,24 @@ const rutasArchivo = join(dist, '_routes.json');
 const rutas = JSON.parse(readFileSync(rutasArchivo, 'utf8'));
 for (const r of ['/stock', '/admin/coche/*', '/admin/clientes', '/admin/captaciones', '/admin/imagenes', '/img-web/*']) if (!rutas.include.includes(r)) rutas.include.push(r);
 rutas.include = [...new Set(rutas.include)].filter((r) => !['/_server-islands/*', '/_image'].includes(r));
+// En Windows el adaptador a veces deja cada archivo como una regla (o con «\»), y Cloudflare no admite reglas de más
+// de 100 caracteres ni más de 100 reglas: entonces se resume por carpetas y el Worker atiende todo lo demás.
+// RESUMIR_RUTAS=1 fuerza este camino para probarlo.
+const reglas = [...rutas.include, ...rutas.exclude];
+if (process.env.RESUMIR_RUTAS || reglas.length > 100 || reglas.some((r) => r.length > 100 || r.includes('\\'))) {
+  const exclude = [];
+  for (const e of readdirSync(dist, { withFileTypes: true })) {
+    if (e.name.startsWith('_')) { if (e.name === '_astro') exclude.push('/_astro/*'); continue; }
+    if (e.isDirectory()) {
+      // en /admin conviven archivos fijos y páginas del Worker: solo se excluyen los archivos
+      if (e.name === 'admin') for (const f of readdirSync(join(dist, 'admin'))) exclude.push(`/admin/${f}`);
+      else exclude.push(`/${e.name}/*`);
+    } else exclude.push(e.name === '404.html' ? '/404' : `/${e.name}`);
+  }
+  rutas.include = ['/*'];
+  rutas.exclude = exclude.filter((r) => r.length <= 100).slice(0, 99);
+  console.log('Rutas resumidas por carpetas (el adaptador dio reglas que Cloudflare no admite).');
+}
 writeFileSync(rutasArchivo, JSON.stringify(rutas, null, 2) + '\n');
 
 const kb = Math.round(readFileSync(join(dist, '_worker.js')).length / 1024);
