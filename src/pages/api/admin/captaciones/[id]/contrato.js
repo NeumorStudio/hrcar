@@ -22,7 +22,7 @@ export async function POST({ request, params, locals }) {
   } catch (e) {
     return json({ ok: false, error: e.message }, 400);
   }
-  const origen = origenPublico(request);
+  const origen = origenPublico(request, env);
   const enlace = `${origen}/firmar/${k.token}`;
   const coche = [cap.datos?.marca, cap.datos?.modelo].filter(Boolean).join(' ') || cap.titulo || 'tu coche';
   const quien = aj.empresa_representante ? `${aj.empresa_representante.split(' ')[0]}, de ${aj.empresa_nombre}` : aj.empresa_nombre;

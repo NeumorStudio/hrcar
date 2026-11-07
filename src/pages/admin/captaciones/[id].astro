@@ -21,7 +21,7 @@ const wa = telWhatsApp(c.vendedor_telefono);
 const ultimo = c.contratos[0] || null;
 const pendiente = ultimo && ['Pendiente', 'Visto'].includes(ultimo.estado) ? ultimo : null;
 const firmado = c.contratos.find((k) => k.estado === 'Firmado') || null;
-const origen = origenPublico(Astro.request);
+const origen = origenPublico(Astro.request, Astro.locals.runtime.env);
 const faltaAjustes = [!aj.empresa_nif && 'tu NIF', !aj.empresa_representante && 'quién firma', !aj.firma && 'tu firma'].filter(Boolean);
 const fecha = (f) => (f ? f.slice(0, 10).split('-').reverse().join('/') : '');
 const COMBUSTIBLES = ['Gasolina', 'Diésel', 'Híbrido gasolina', 'Híbrido diésel', 'Híbrido enchufable', 'Eléctrico', 'GLP', 'GNC'];

@@ -43,7 +43,7 @@ export async function POST({ request, params, locals }) {
   if (!d || typeof d !== 'object') return json({ ok: false, error: 'Datos no válidos.' }, 400);
   const r = await firmar(env, k, d, request);
   if (r.error) return json({ ok: false, error: r.error, campo: r.campo || null }, 400);
-  const avisos = avisarFirma(env, k, r.valores, origenPublico(request)).catch(() => {});
+  const avisos = avisarFirma(env, k, r.valores, origenPublico(request, env)).catch(() => {});
   if (locals.runtime.ctx?.waitUntil) locals.runtime.ctx.waitUntil(avisos); else await avisos;
   return json({ ok: true });
 }
