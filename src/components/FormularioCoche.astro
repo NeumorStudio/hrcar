@@ -6,12 +6,21 @@ import { NEGOCIO } from '../negocio.js';
 import { ESTADOS, TIPOS } from '../lib/datos.js';
 import { fotoUrl, fotoMini } from '../lib/plantillas.js';
 import { precioFinal } from '../lib/formato.js';
-interface Props { coche: any | null; marcas: string[]; modelos: string[]; base?: any | null; venta?: any | null }
-const { coche, marcas, modelos, base = null, venta = null } = Astro.props;
+interface Props { coche: any | null; marcas: string[]; modelos: string[]; base?: any | null; venta?: any | null; captacion?: any | null }
+const { coche, marcas, modelos, base = null, venta = null, captacion = null } = Astro.props;
 const q = Astro.url.searchParams;
 const texto = (k) => (q.get(k) || '').slice(0, 120) || undefined;
-// coche nuevo: vacío, con lo que llegue de la calculadora (?titulo=…) o copiado de otro («Duplicar»)
-const c = coche ?? (base ? {
+// coche nuevo: vacío, con lo que llegue de la calculadora (?titulo=…), copiado de otro («Duplicar») o de una captación
+const dc = captacion?.datos || {};
+const desdeCaptacion = captacion ? {
+  tipo: 'Ocasión', marca: dc.marca, modelo: dc.modelo, version: dc.version, combustible: dc.combustible, potencia_cv: dc.potencia_cv,
+  carroceria: dc.carroceria, puertas: dc.puertas, cambio: dc.cambio, anio: dc.anio, km: dc.km, color: dc.color, etiqueta_dgt: dc.etiqueta_dgt,
+  garantia_meses: dc.garantia_meses ?? 12, descripcion: dc.descripcion, matricula: captacion.matricula,
+  coste: captacion.precio_neto != null ? captacion.precio_neto + (captacion.gastos || 0) : undefined,
+  precio: captacion.precio_venta ?? undefined,
+  notas: [`Coche de ${captacion.vendedor_nombre || 'un particular'} (captación n.º ${captacion.id}).`, captacion.precio_neto != null ? `Recibe ${captacion.precio_neto} € al venderse; gastos ${captacion.gastos || 0} €.` : null, captacion.vendedor_telefono ? `Teléfono: ${captacion.vendedor_telefono}.` : null].filter(Boolean).join(' '),
+} : null;
+const c = coche ?? desdeCaptacion ?? (base ? {
   tipo: base.tipo, marca: base.marca, modelo: base.modelo, version: base.version, combustible: base.combustible, potencia_cv: base.potencia_cv,
   carroceria: base.carroceria, puertas: base.puertas, cambio: base.cambio, anio: base.anio, color: base.color, etiqueta_dgt: base.etiqueta_dgt,
   garantia_meses: base.garantia_meses, ubicacion: base.ubicacion, descripcion: base.descripcion, precio: base.precio,
@@ -21,7 +30,12 @@ const c = coche ?? (base ? {
   cambio: ['Manual', 'Automático'].includes(q.get('cambio')) ? q.get('cambio') : undefined,
   potencia_cv: Number(q.get('potencia_cv')) || undefined, anio: Number(q.get('anio')) || undefined, km: Number(q.get('km')) || undefined,
   precio: Number(q.get('precio_venta')) || undefined, coste: Number(q.get('precio_compra')) || undefined,
+  carroceria: texto('carroceria'), puertas: Number(q.get('puertas')) || undefined, color: texto('color'),
+  etiqueta_dgt: ['0', 'ECO', 'C', 'B'].includes(q.get('etiqueta_dgt') || '') ? q.get('etiqueta_dgt') : undefined,
 });
+// fotos del anuncio que se pueden traer en el paso 4 (de una captación; las de la calculadora llegan por el navegador)
+const fotosAnuncio = !coche && captacion ? (dc.fotos || []).slice(0, 20) : [];
+const etiquetaEstimada = !coche && ((captacion && dc.etiqueta_estimada) || q.get('etiqueta_estimada') === '1');
 const nuevo = !coche;
 const v = (campo) => (c[campo] ?? '');
 const fotos = (c.fotos ?? []).filter((f) => f !== 'covered-car.webp');
@@ -41,7 +55,7 @@ const AYUDA_ESTADO: Record<string, string> = {
 const fecha = (f) => (f ? f.split('-').reverse().join('/') : '');
 const MAX_FOTOS = 20;
 ---
-<form class="formulario-coche" data-formulario-coche data-api={nuevo ? '/api/admin/coches' : `/api/admin/coches/${c.slug}`} data-metodo={nuevo ? 'POST' : 'PUT'} data-estado-inicial={nuevo ? '' : c.estado} data-actualizado={nuevo ? '' : (c.actualizado ?? '')} data-max-fotos={MAX_FOTOS} novalidate>
+<form class="formulario-coche" data-formulario-coche data-desde-calculadora={!coche && !captacion && !base && q.get('origen') === 'calculadora' ? '1' : ''} data-api={nuevo ? '/api/admin/coches' : `/api/admin/coches/${c.slug}`} data-metodo={nuevo ? 'POST' : 'PUT'} data-estado-inicial={nuevo ? '' : c.estado} data-actualizado={nuevo ? '' : (c.actualizado ?? '')} data-max-fotos={MAX_FOTOS} novalidate>
   <div class="caja aviso-borrador" data-borrador hidden>
     <strong>Tienes cambios sin guardar</strong> <span class="suave" data-borrador-cuando></span>
     <p class="suave" style="margin:6px 0 0">Se guardaron en este móvil u ordenador antes de salir de la página.</p>
@@ -92,7 +106,7 @@ const MAX_FOTOS = 20;
     <div class="tres">
       <label class="campo"><span>Kilómetros *</span><input type="number" name="km" min="0" max="2000000" value={v('km')} required inputmode="numeric" /></label>
       <label class="campo"><span>Color</span><input type="text" name="color" value={v('color')} /></label>
-      <label class="campo"><span>Etiqueta DGT</span>
+      <label class="campo"><span>Etiqueta DGT{etiquetaEstimada && <span class="nota" data-etiqueta-estimada> (estimada por año y combustible: compruébala)</span>}</span>
         <select name="etiqueta_dgt">{ETIQUETAS.map(([val, texto]) => <option value={val} selected={(c.etiqueta_dgt ?? '') === val}>{texto}</option>)}</select>
       </label>
     </div>
@@ -109,7 +123,7 @@ const MAX_FOTOS = 20;
     <p class="suave">Nada de esto se publica en la web.</p>
     <div class="dos">
       <label class="campo"><span>Matrícula</span><input type="text" name="matricula" value={v('matricula')} style="text-transform:uppercase" autocomplete="off" /></label>
-      <label class="campo"><span>Precio de compra (€)</span><input type="number" name="coste" min="0" value={v('coste')} inputmode="numeric" /></label>
+      <label class="campo"><span>Coste (€) <span class="nota">(lo que pagas; si es de un particular, lo que recibe él + tus gastos)</span></span><input type="number" name="coste" min="0" value={v('coste')} inputmode="numeric" /></label>
     </div>
     <label class="campo"><span>Notas</span><textarea name="notas" placeholder="Proveedor, reparaciones, documentación pendiente…">{v('notas')}</textarea></label>
     <div class="pie-pasos"><button type="button" class="boton secundario" data-atras>← Atrás</button><button type="button" class="boton" data-siguiente>Siguiente →</button></div>
@@ -126,6 +140,10 @@ const MAX_FOTOS = 20;
     <div class="desde-enlace" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 0">
       <input type="url" placeholder="o pega el enlace de una foto (de un anuncio, por ejemplo)" data-foto-enlace style="flex:1;min-width:220px" />
       <button type="button" class="boton secundario pequeno" data-foto-enlace-boton>Traer foto</button>
+    </div>
+    <div class="fotos-del-anuncio" data-fotos-anuncio={JSON.stringify(fotosAnuncio)} hidden={!fotosAnuncio.length}>
+      <span data-fotos-anuncio-texto>Hay {fotosAnuncio.length} fotos en el anuncio.</span>
+      <button type="button" class="boton pequeno" data-traer-fotos-anuncio>Traer las fotos del anuncio</button>
     </div>
     <p class="progreso-fotos" data-progreso-fotos aria-live="polite" hidden></p>
     <p class="cuenta-fotos" data-cuenta-fotos>{fotos.length} de {MAX_FOTOS} fotos</p>
@@ -173,6 +191,7 @@ const MAX_FOTOS = 20;
     )}
 
     <input type="hidden" name="fotos_json" value={JSON.stringify(fotos)} data-fotos-json />
+    {captacion && <input type="hidden" name="captacion_id" value={captacion.id} />}
     <div class="pie-pasos">
       <button type="button" class="boton secundario" data-atras>← Atrás</button>
       {nuevo && <button type="submit" class="boton" data-publicar>Publicar vehículo</button>}

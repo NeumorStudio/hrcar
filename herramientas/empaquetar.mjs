@@ -24,12 +24,25 @@ await build({
   logLevel: 'warning',
 });
 rmSync(carpeta, { recursive: true, force: true });
+
+// PDF de los contratos firmados: lo monta el navegador (pdf-lib gasta demasiada CPU para el plan gratuito del Worker)
+await build({
+  entryPoints: [join(raiz, 'src', 'navegador', 'pdf.js')],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'es2019',
+  outfile: join(dist, 'js', 'contrato-pdf.js'),
+  minify: true,
+  legalComments: 'none',
+  logLevel: 'warning',
+});
 renameSync(join(dist, '_worker.bundle.js'), join(dist, '_worker.js'));
 
 // /stock (sin barra) también lo sirve el Worker; el adaptador solo apunta /stock/*
 const rutasArchivo = join(dist, '_routes.json');
 const rutas = JSON.parse(readFileSync(rutasArchivo, 'utf8'));
-for (const r of ['/stock', '/admin/coche/*', '/admin/clientes', '/admin/imagenes', '/img-web/*']) if (!rutas.include.includes(r)) rutas.include.push(r);
+for (const r of ['/stock', '/admin/coche/*', '/admin/clientes', '/admin/captaciones', '/admin/imagenes', '/img-web/*']) if (!rutas.include.includes(r)) rutas.include.push(r);
 rutas.include = [...new Set(rutas.include)].filter((r) => !['/_server-islands/*', '/_image'].includes(r));
 writeFileSync(rutasArchivo, JSON.stringify(rutas, null, 2) + '\n');
 

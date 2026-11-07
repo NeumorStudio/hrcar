@@ -1,0 +1,180 @@
+---
+// Ficha de una captación: el coche, los números (lo que recibe el vendedor, a cuánto se vende y la comisión),
+// la tasación por coches parecidos, el vendedor, el contrato y el paso al inventario.
+import Admin from '../../../layouts/Admin.astro';
+import { obtenerCaptacion, ESTADOS_CAPTACION, AYUDA_ESTADO_CAPTACION, comision, ajustesContrato } from '../../../lib/captaciones.js';
+import { telWhatsApp } from '../../../lib/crm.js';
+import { fechaHora } from '../../../lib/contrato.js';
+import { origenPublico } from '../../../lib/origen.js';
+import { euros, kms } from '../../../lib/formato.js';
+const db = Astro.locals.runtime.env.DB;
+const id = /^\d{1,12}$/.test(Astro.params.id || '') ? Number(Astro.params.id) : null;
+const c = id ? await obtenerCaptacion(db, id) : null;
+if (!c) return Astro.redirect('/admin/captaciones');
+const aj = await ajustesContrato(db);
+const d = c.datos || {};
+const t = c.tasacion;
+const com = comision(c);
+const fotos = (d.fotos || []).slice(0, 8);
+const proxy = (u) => `/api/admin/fotos/desde-url?url=${encodeURIComponent(u)}`;
+const wa = telWhatsApp(c.vendedor_telefono);
+const ultimo = c.contratos[0] || null;
+const pendiente = ultimo && ['Pendiente', 'Visto'].includes(ultimo.estado) ? ultimo : null;
+const firmado = c.contratos.find((k) => k.estado === 'Firmado') || null;
+const origen = origenPublico(Astro.request);
+const faltaAjustes = [!aj.empresa_nif && 'tu NIF', !aj.empresa_representante && 'quién firma', !aj.firma && 'tu firma'].filter(Boolean);
+const fecha = (f) => (f ? f.slice(0, 10).split('-').reverse().join('/') : '');
+const COMBUSTIBLES = ['Gasolina', 'Diésel', 'Híbrido gasolina', 'Híbrido diésel', 'Híbrido enchufable', 'Eléctrico', 'GLP', 'GNC'];
+const ESTADO_K = { Pendiente: 'Enviado, sin abrir', Visto: 'Abierto, sin firmar', Firmado: 'Firmado', Anulado: 'Anulado', Caducado: 'Caducado' };
+const CANAL = { whatsapp: 'WhatsApp', correo: 'correo', enlace: 'enlace copiado' };
+const INDICADOR = { 1: 'caro', 2: 'algo caro', 3: 'en precio', 4: 'buen precio', 5: 'muy buen precio' };
+const enScript = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
+const objetivo = { marca: d.marca, modelo: d.modelo, version: d.version, anio: d.anio, km: d.km, combustible: d.combustible, cambio: d.cambio, potencia_cv: d.potencia_cv, url: c.url, cochesnet: d.cochesnet };
+---
+<Admin titulo={c.titulo || 'Captación'} seccion="captaciones">
+  <div class="fila-titulo">
+    <div>
+      <a href="/admin/captaciones" class="suave">← Captaciones</a>
+      <h1 style="margin-top:4px">{c.titulo || 'Coche sin datos'}</h1>
+      <p class="suave">{[d.portal, `captado el ${fecha(c.creado)}`].filter(Boolean).join(' · ')}{c.url && <> · <a href={c.url} target="_blank" rel="noopener noreferrer">ver el anuncio ↗</a></>}</p>
+    </div>
+    <span class={`chip estado-captacion e-${c.estado.replace(/\s+/g, '-')}`} data-estado-chip>{c.estado}</span>
+  </div>
+
+  {d.bloqueado && <div class="caja aviso-caja"><b>El portal no dejó leer la página entera.</b> Del enlace salen la marca, el modelo, el año y poco más: pon el precio, los km y lo que falte, y guarda.</div>}
+
+  <form class="ficha-captacion" data-captacion={c.id} novalidate>
+    <script type="application/json" data-objetivo set:html={enScript(objetivo)} />
+
+    <section class="caja">
+      <h2>El coche</h2>
+      {fotos.length > 0 && (
+        <div class="fotos-anuncio">
+          {fotos.slice(0, 4).map((f) => <img src={proxy(f)} alt="" loading="lazy" decoding="async" />)}
+          {d.fotos.length > 4 && <span class="suave">+{d.fotos.length - 4} fotos más en el anuncio</span>}
+        </div>
+      )}
+      <div class="tres">
+        <label class="campo"><span>Marca</span><input type="text" data-dato="marca" value={d.marca || ''} list="lista-marcas-cap" autocomplete="off" /></label>
+        <label class="campo"><span>Modelo</span><input type="text" data-dato="modelo" value={d.modelo || ''} autocomplete="off" /></label>
+        <label class="campo"><span>Versión</span><input type="text" data-dato="version" value={d.version || ''} /></label>
+        <label class="campo"><span>Año</span><input type="number" data-dato="anio" value={d.anio ?? ''} min="1950" max="2100" inputmode="numeric" /></label>
+        <label class="campo"><span>Kilómetros</span><input type="number" data-dato="km" value={d.km ?? ''} min="0" inputmode="numeric" /></label>
+        <label class="campo"><span>Potencia (CV)</span><input type="number" data-dato="potencia_cv" value={d.potencia_cv ?? ''} min="1" inputmode="numeric" /></label>
+        <label class="campo"><span>Combustible</span><select data-dato="combustible"><option value="">—</option>{COMBUSTIBLES.map((x) => <option value={x} selected={d.combustible === x}>{x}</option>)}</select></label>
+        <label class="campo"><span>Cambio</span><select data-dato="cambio"><option value="">—</option>{['Manual', 'Automático'].map((x) => <option value={x} selected={d.cambio === x}>{x}</option>)}</select></label>
+        <label class="campo"><span>Matrícula <span class="nota">(si no la sabes, la pone él al firmar)</span></span><input type="text" name="matricula" value={c.matricula || ''} style="text-transform:uppercase" autocomplete="off" /></label>
+      </div>
+      <datalist id="lista-marcas-cap">{['Abarth', 'Alfa Romeo', 'Audi', 'BMW', 'BYD', 'Citroën', 'Cupra', 'Dacia', 'DS', 'Fiat', 'Ford', 'Honda', 'Hyundai', 'Jaguar', 'Jeep', 'Kia', 'Land Rover', 'Lexus', 'Mazda', 'Mercedes-Benz', 'MG', 'Mini', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Porsche', 'Renault', 'SEAT', 'Skoda', 'Smart', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo'].map((m) => <option value={m} />)}</datalist>
+    </section>
+
+    <section class="caja">
+      <h2>Números</h2>
+      <div class="dos">
+        <label class="campo"><span>Precio del anuncio (€)</span><input type="number" name="precio_anuncio" value={c.precio_anuncio ?? ''} min="0" inputmode="numeric" /></label>
+        <label class="campo"><span>Lo que recibe el vendedor (€) <span class="nota">(precio neto del contrato)</span></span><input type="number" name="precio_neto" value={c.precio_neto ?? ''} min="0" inputmode="numeric" /></label>
+        <label class="campo"><span>Tus gastos (€) <span class="nota">(cambio de nombre, gestoría, preparación…)</span></span><input type="number" name="gastos" value={c.gastos ?? ''} min="0" inputmode="numeric" /></label>
+        <label class="campo"><span>Precio al que lo vendes (€)</span><input type="number" name="precio_venta" value={c.precio_venta ?? ''} min="0" inputmode="numeric" /></label>
+      </div>
+      <div class="resultado-total">
+        <div><span class="suave">Tu comisión</span><b data-comision class={com == null ? '' : com >= 0 ? 'verde' : 'rojo'}>{com == null ? '— pon el neto y el precio de venta' : euros(com)}</b></div>
+      </div>
+
+      <div class="tasacion" data-tasacion>
+        <div class="fila-titulo" style="margin:16px 0 6px">
+          <h3 style="margin:0">Tasación por coches parecidos</h3>
+          <button type="button" class="boton secundario pequeno" data-tasar>{t ? 'Volver a tasar' : 'Tasar'}</button>
+        </div>
+        <script type="application/json" data-tasacion-guardada set:html={enScript(t || null)} />
+        <div data-tasacion-resultado>
+          {!t && <p class="suave">Busca en coches.net y AutoScout24 coches del mismo modelo, años y kilómetros parecidos, y te dice a cuánto se venden.</p>}
+        </div>
+        {d.precio_medio && (
+          <p class="suave" style="margin:6px 0 0">coches.net calcula un precio medio de <b>{euros(d.precio_medio)}</b> para este coche{d.indicador_precio && INDICADOR[d.indicador_precio] ? ` y dice que el anuncio está a ${INDICADOR[d.indicador_precio]}` : ''}.</p>
+        )}
+      </div>
+    </section>
+
+    <section class="caja">
+      <h2>Vendedor</h2>
+      <div class="dos">
+        <label class="campo"><span>Nombre y apellidos</span><input type="text" name="vendedor_nombre" value={c.vendedor_nombre || ''} autocomplete="off" /></label>
+        <label class="campo"><span>Teléfono</span><input type="tel" name="vendedor_telefono" value={c.vendedor_telefono || ''} autocomplete="off" inputmode="tel" /></label>
+        <label class="campo"><span>Correo <span class="nota">(opcional: para mandarle el contrato y su copia)</span></span><input type="email" name="vendedor_email" value={c.vendedor_email || ''} autocomplete="off" /></label>
+        <label class="campo"><span>DNI/NIE <span class="nota">(lo pone él al firmar)</span></span><input type="text" value={c.vendedor_dni || ''} disabled /></label>
+      </div>
+      {c.vendedor_telefono && (
+        <div class="botonera">
+          <a class="boton secundario pequeno" href={`tel:${c.vendedor_telefono.replace(/[^\d+]/g, '')}`}>Llamar</a>
+          {wa && <a class="boton secundario pequeno" href={`https://wa.me/${wa}`} target="_blank" rel="noopener">WhatsApp</a>}
+        </div>
+      )}
+      <label class="campo" style="margin-top:12px"><span>Notas</span><textarea name="notas" placeholder="Cuándo puede enseñarlo, dónde está, lo que haya que arreglar…">{c.notas || ''}</textarea></label>
+      <label class="campo"><span>Estado</span>
+        <select name="estado">{ESTADOS_CAPTACION.map((e) => <option value={e} selected={c.estado === e}>{e}</option>)}</select>
+      </label>
+      <p class="suave" data-ayuda-estado-cap>{AYUDA_ESTADO_CAPTACION[c.estado]}</p>
+      <script type="application/json" data-ayudas-estado-cap set:html={enScript(AYUDA_ESTADO_CAPTACION)} />
+    </section>
+
+    <div class="barra-guardar" data-barra-guardar>
+      <span class="estado-guardar" data-estado-guardar>Sin cambios</span>
+      <button type="submit" class="boton">Guardar cambios</button>
+    </div>
+  </form>
+
+  <section class="caja" data-contrato-caja data-captacion-id={c.id} data-wa={wa}>
+    <h2>Contrato</h2>
+    {faltaAjustes.length > 0 && (
+      <p class="aviso-caja">Antes del primer contrato, completa en <a href="/admin/ajustes#contratos">Ajustes → Contratos</a>: {faltaAjustes.join(', ')}.{!aj.plantilla_propia && ' De momento se usa una plantilla provisional.'}</p>
+    )}
+    {firmado && (
+      <div class="contrato-firmado">
+        <p><b>✓ Firmado</b> por {firmado.firmante_nombre} ({firmado.firmante_dni}) el {fechaHora(firmado.firmado)}.</p>
+        <button type="button" class="boton" data-pdf-contrato={firmado.id}>Descargar el contrato en PDF</button>
+      </div>
+    )}
+    {pendiente && (
+      <div class="contrato-pendiente" data-enlace={`${origen}/firmar/${pendiente.token}`}>
+        <p><b>{ESTADO_K[pendiente.estado]}</b>: enviado por {CANAL[pendiente.canal] || 'enlace'} el {fechaHora(pendiente.enviado || pendiente.creado)}{pendiente.visto && `, abierto el ${fechaHora(pendiente.visto)}`}. El enlace vale hasta el {fecha(pendiente.caduca)}.</p>
+        <div class="botonera">
+          <button type="button" class="boton secundario pequeno" data-recordar>Recordárselo por WhatsApp</button>
+          <button type="button" class="boton secundario pequeno" data-copiar-enlace>Copiar enlace</button>
+          <a class="boton secundario pequeno" href={`/firmar/${pendiente.token}`} target="_blank" rel="noopener">Ver lo que ve él</a>
+          <button type="button" class="boton peligro pequeno" data-anular={pendiente.id}>Anular</button>
+        </div>
+      </div>
+    )}
+    {!firmado && (
+      <>
+        <p class="suave">{pendiente ? 'Si has cambiado algo (precio, vendedor…), manda uno nuevo: el anterior deja de valer.' : 'Sale relleno con los datos del coche, el precio neto y el vendedor. Él lo abre en el móvil, pone su DNI y firma con el dedo.'}</p>
+        <div class="botonera">
+          <button type="button" class="boton" data-enviar-contrato="whatsapp">{pendiente ? 'Mandar uno nuevo por WhatsApp' : 'Enviar por WhatsApp'}</button>
+          <button type="button" class="boton secundario" data-enviar-contrato="correo">Enviar por correo</button>
+          <button type="button" class="boton secundario" data-enviar-contrato="enlace">Copiar el enlace</button>
+        </div>
+      </>
+    )}
+    {c.contratos.length > 1 && (
+      <details style="margin-top:12px"><summary class="suave">Contratos anteriores ({c.contratos.length - 1})</summary>
+        <table class="tabla"><tbody>{c.contratos.slice(1).map((k) => <tr><td>n.º {k.id}</td><td>{ESTADO_K[k.estado] || k.estado}</td><td>{fechaHora(k.enviado || k.creado)}</td><td>{k.estado === 'Firmado' && <button type="button" class="enlace" data-pdf-contrato={k.id}>PDF</button>}</td></tr>)}</tbody></table>
+      </details>
+    )}
+  </section>
+
+  <section class="caja">
+    <h2>Inventario</h2>
+    {c.coche ? (
+      <p>Este coche está en tu inventario{c.coche_titulo ? ` como «${c.coche_titulo}»` : ''}{c.coche_estado ? ` (${c.coche_estado})` : ''}. <a href={`/admin/coche/${encodeURIComponent(c.coche)}`}>Abrir su ficha</a></p>
+    ) : (
+      <>
+        <p class="suave">Pasa el coche al inventario con todo ya puesto: datos, descripción y fotos del anuncio. Como coste se apunta lo que recibe el vendedor más tus gastos, así en Ventas sale tu comisión.</p>
+        <a class="boton" href={`/admin/coche/nuevo?captacion=${c.id}`} data-publicar-captacion data-firmado={firmado ? '1' : ''}>Publicar en el inventario</a>
+      </>
+    )}
+  </section>
+
+  <div class="botonera" style="justify-content:flex-end">
+    <button type="button" class="boton peligro pequeno" data-borrar-captacion>Borrar esta captación</button>
+  </div>
+</Admin>

@@ -1,4 +1,5 @@
 import { guardarAjuste } from '../../../lib/datos.js';
+import { bytesFirma } from '../../../lib/contrato.js';
 import { comprobarContrasena, guardarContrasena, quitarSoporte, permitirSoporte, crearSesion, cabeceraCookie, crearEnlaceJuan, MIN_LONGITUD } from '../../../lib/acceso.js';
 const json = (d, status = 200, extra = {}) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...extra } });
 
@@ -60,6 +61,32 @@ export async function POST({ request, locals }) {
       if (Number.isFinite(n) && n >= 0) costes[k] = n;
     }
     await guardarAjuste(db, 'costes', JSON.stringify(costes));
+    return json({ ok: true });
+  }
+  if (d.accion === 'contrato') {
+    // datos de la empresa y plazos que salen en los contratos de captación
+    const t = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+    const dias = (v, min, max, por) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : por; };
+    await guardarAjuste(db, 'contrato_ajustes', JSON.stringify({
+      empresa_nombre: t(d.empresa_nombre, 120), empresa_nif: t(d.empresa_nif, 20).toUpperCase(), empresa_domicilio: t(d.empresa_domicilio, 200),
+      empresa_representante: t(d.empresa_representante, 120), ciudad: t(d.ciudad, 60), plazo_dias: dias(d.plazo_dias, 1, 365, 60), dias_enlace: dias(d.dias_enlace, 1, 60, 14),
+    }));
+    return json({ ok: true });
+  }
+  if (d.accion === 'plantilla') {
+    // texto del contrato (vacío o «restaurar»: vuelve la plantilla provisional)
+    const texto = String(d.plantilla ?? '').replace(/\r\n/g, '\n').trim();
+    if (d.restaurar || !texto) { await guardarAjuste(db, 'contrato_plantilla', null); return json({ ok: true }); }
+    if (texto.length > 40000) return json({ ok: false, error: 'El contrato es demasiado largo (máximo 40.000 caracteres).' }, 400);
+    if (!/\{\{\s*precio_neto\s*\}\}/.test(texto) || !/\{\{\s*vendedor_dni\s*\}\}/.test(texto)) return json({ ok: false, error: 'El contrato tiene que llevar al menos {{precio_neto}} y {{vendedor_dni}}.' }, 400);
+    await guardarAjuste(db, 'contrato_plantilla', texto);
+    return json({ ok: true });
+  }
+  if (d.accion === 'firma') {
+    // tu firma, que se pone sola en cada contrato que mandas
+    if (d.borrar) { await guardarAjuste(db, 'contrato_firma', null); return json({ ok: true }); }
+    if (!bytesFirma(d.firma, 300000)) return json({ ok: false, error: 'No se ha podido leer la firma. Bórrala y vuelve a firmar.' }, 400);
+    await guardarAjuste(db, 'contrato_firma', d.firma);
     return json({ ok: true });
   }
   return json({ ok: false, error: 'Acción desconocida.' }, 400);

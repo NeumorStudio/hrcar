@@ -1,0 +1,55 @@
+---
+// Captaciones: coches de particulares que vende el concesionario por ellos. Del anuncio al contrato firmado y a la venta.
+import Admin from '../../layouts/Admin.astro';
+import { listarCaptaciones, ESTADOS_CAPTACION, comision } from '../../lib/captaciones.js';
+import { euros, kms } from '../../lib/formato.js';
+const db = Astro.locals.runtime.env.DB;
+const filtro = ESTADOS_CAPTACION.includes(Astro.url.searchParams.get('estado') || '') ? Astro.url.searchParams.get('estado') : '';
+const { captaciones, cuenta, activas } = await listarCaptaciones(db, { estado: filtro });
+const ESTADO_CONTRATO = { Pendiente: 'Contrato enviado', Visto: 'Contrato abierto, sin firmar', Firmado: 'Contrato firmado', Anulado: 'Contrato anulado' };
+const contratoTexto = (c) => {
+  if (!c.contrato_estado) return null;
+  if (['Pendiente', 'Visto'].includes(c.contrato_estado) && c.contrato_caduca < new Date().toISOString()) return 'Enlace caducado';
+  return ESTADO_CONTRATO[c.contrato_estado] || null;
+};
+---
+<Admin titulo="Captaciones" seccion="captaciones">
+  <div class="fila-titulo"><div><h1>Captaciones</h1><p class="suave">Coches de particulares que vendes tú: del anuncio al contrato firmado y a la venta.</p></div></div>
+  <div class="caja">
+    <form data-nueva-captacion class="form-tarea">
+      <label class="campo" style="flex:1;min-width:240px"><span>Pega el enlace del anuncio (coches.net, Wallapop, AutoScout24, Milanuncios…)</span><input type="url" name="url" placeholder="https://www.coches.net/…" required inputmode="url" /></label>
+      <button class="boton" type="submit">Captar este coche</button>
+    </form>
+    <p class="suave" style="margin:8px 0 0">Se leen los datos y las fotos del anuncio y se tasa solo. Después pones lo que quiere el vendedor y le mandas el contrato.</p>
+  </div>
+
+  <nav class="pestanas" aria-label="Filtrar por estado">
+    <a href="/admin/captaciones" class={!filtro ? 'activo' : ''}>En marcha ({activas})</a>
+    {ESTADOS_CAPTACION.map((e) => <a href={`/admin/captaciones?estado=${encodeURIComponent(e)}`} class={filtro === e ? 'activo' : ''}>{e} ({cuenta[e] || 0})</a>)}
+  </nav>
+
+  {captaciones.length === 0 ? (
+    <div class="caja vacio"><p>{filtro ? `No hay captaciones en «${filtro}».` : 'Todavía no hay captaciones en marcha. Pega arriba el enlace de un anuncio para empezar.'}</p></div>
+  ) : (
+    <div class="lista-captaciones">
+      {captaciones.map((c) => {
+        const d = c.datos || {};
+        const com = comision(c);
+        const kt = contratoTexto(c);
+        return (
+          <a class="caja captacion" href={`/admin/captaciones/${c.id}`} data-captacion-fila={c.id}>
+            <div class="captacion-cabeza">
+              <b>{c.titulo || 'Coche sin datos'}</b>
+              <span class={`chip estado-captacion e-${c.estado.replace(/\s+/g, '-')}`}>{c.estado}</span>
+            </div>
+            <div class="suave">{[d.anio, d.km != null ? kms(d.km) : null, d.combustible, c.precio_anuncio ? `anunciado a ${euros(c.precio_anuncio)}` : null].filter(Boolean).join(' · ')}</div>
+            <div class="captacion-pie">
+              <span>{c.vendedor_nombre || <span class="suave">Sin vendedor todavía</span>}{kt && <span class="suave"> · {kt}</span>}</span>
+              {com != null && <span class={com >= 0 ? 'verde' : 'rojo'}>Comisión {euros(com)}</span>}
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  )}
+</Admin>

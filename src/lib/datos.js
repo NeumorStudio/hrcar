@@ -68,6 +68,26 @@ const ESQUEMA = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     titulo TEXT, url TEXT, datos TEXT NOT NULL DEFAULT '{}', creado TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
+  // Captaciones: coches de particulares que LIDIAUTO vende por ellos (precio neto para el dueño + su comisión).
+  `CREATE TABLE IF NOT EXISTS captaciones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    estado TEXT NOT NULL DEFAULT 'Contactado',
+    url TEXT, portal TEXT, titulo TEXT, datos TEXT NOT NULL DEFAULT '{}',
+    vendedor_nombre TEXT, vendedor_telefono TEXT, vendedor_email TEXT, vendedor_dni TEXT, vendedor_domicilio TEXT,
+    matricula TEXT, precio_anuncio INTEGER, precio_neto INTEGER, precio_venta INTEGER, gastos INTEGER,
+    tasacion TEXT, coche TEXT, notas TEXT,
+    creado TEXT NOT NULL DEFAULT (datetime('now')), actualizado TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  // Contratos que firma el vendedor desde un enlace (texto congelado al enviarlo, firma, registro y PDF).
+  `CREATE TABLE IF NOT EXISTS contratos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    captacion_id INTEGER NOT NULL, token TEXT NOT NULL UNIQUE,
+    estado TEXT NOT NULL DEFAULT 'Pendiente',
+    canal TEXT, destino TEXT, plantilla TEXT NOT NULL, datos TEXT NOT NULL DEFAULT '{}',
+    firma_empresa TEXT, firma_vendedor TEXT, firmante_nombre TEXT, firmante_dni TEXT, texto_firmado TEXT,
+    creado TEXT NOT NULL DEFAULT (datetime('now')), enviado TEXT, visto TEXT, firmado TEXT, caduca TEXT NOT NULL,
+    ip TEXT, agente TEXT, huella TEXT, pdf_huella TEXT
+  )`,
   `CREATE TABLE IF NOT EXISTS suscripciones (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     endpoint TEXT NOT NULL UNIQUE, datos TEXT NOT NULL, usuario TEXT, dispositivo TEXT, creado TEXT NOT NULL DEFAULT (datetime('now'))
@@ -93,9 +113,12 @@ const INDICES = [
   'CREATE INDEX IF NOT EXISTS idx_clientes_tel ON clientes(tel_norm)',
   'CREATE INDEX IF NOT EXISTS idx_clientes_email ON clientes(email_norm)',
   'CREATE INDEX IF NOT EXISTS idx_clientes_actualizado ON clientes(actualizado)',
+  'CREATE INDEX IF NOT EXISTS idx_captaciones_estado ON captaciones(estado, actualizado)',
+  'CREATE INDEX IF NOT EXISTS idx_captaciones_coche ON captaciones(coche)',
+  'CREATE INDEX IF NOT EXISTS idx_contratos_captacion ON contratos(captacion_id)',
 ];
 // Súbelo cuando cambien ESQUEMA, COLUMNAS_NUEVAS o INDICES: así cada arranque solo hace una lectura.
-const VERSION_ESQUEMA = '2';
+const VERSION_ESQUEMA = '3';
 
 /** Teléfono comparable: solo cifras, sin 00 ni el prefijo de España (600 11 22 33 = +34 600112233). */
 export const normTel = (t) => {

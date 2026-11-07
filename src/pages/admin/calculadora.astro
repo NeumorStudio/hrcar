@@ -16,6 +16,9 @@ const guardados = await listarCalculos(db);
       <button class="boton secundario" type="submit">Leer anuncio</button>
     </form>
     <p class="suave" data-importar-aviso hidden></p>
+    <div class="botonera" data-tras-leer hidden style="margin-top:10px">
+      <button type="button" class="boton secundario" data-captar>Lo vendo por el dueño: captar este coche</button>
+    </div>
   </div>
   <form data-calculadora data-costes={JSON.stringify(costes)} data-tramos={JSON.stringify(TRAMOS_CO2)}>
     <div class="dos paneles">
@@ -23,7 +26,7 @@ const guardados = await listarCalculos(db);
         <h2>El coche</h2>
         <label class="campo"><span>Título</span><input type="text" name="titulo" placeholder="Marca, modelo y versión" /></label>
         {/* Datos que se leen del anuncio y pasan al alta del coche (no se muestran aquí) */}
-        {['marca', 'modelo', 'version', 'combustible', 'cambio', 'potencia_cv'].map((k) => <input type="hidden" name={k} />)}
+        {['marca', 'modelo', 'version', 'combustible', 'cambio', 'potencia_cv', 'carroceria', 'puertas', 'color', 'etiqueta_dgt', 'etiqueta_estimada'].map((k) => <input type="hidden" name={k} />)}
         <div class="etiqueta">Dónde está</div>
         <div class="opciones" style="margin-bottom:14px">
           <label><input type="radio" name="origen" value="extranjero" checked />Fuera de España (importar)</label>
@@ -46,6 +49,10 @@ const guardados = await listarCalculos(db);
           <label class="campo"><span>Otros gastos (€)</span><input type="number" name="otros" min="0" value="0" inputmode="numeric" /></label>
         </div>
         <label class="campo"><span>¿A cuánto lo venderías? (€)</span><input type="number" name="precio_venta" min="0" inputmode="numeric" /></label>
+        <div class="tasacion" data-tasacion data-tasacion-calc>
+          <button type="button" class="boton secundario pequeno" data-tasar>¿A cuánto se venden? Tasar con coches parecidos</button>
+          <div data-tasacion-resultado></div>
+        </div>
       </div>
       <div class="caja">
         <h2>Resultado</h2>

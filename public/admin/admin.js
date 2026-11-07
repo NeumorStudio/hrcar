@@ -54,6 +54,8 @@
     });
   }
   var fallo = function (err) { if (err && err.message !== 'sesion') avisar(err.message, 'error'); };
+  // lo comparten los otros scripts del panel (captaciones.js)
+  window.LIDI = { $: $, $$: $$, euros: euros, avisar: avisar, pedir: pedir, fallo: fallo, preguntar: function (o) { return preguntar(o); }, traerDeEnlace: function (u) { return traerDeEnlace(u); }, datosFormulario: function (f) { return datosFormulario(f); } };
 
   /** Pide al servidor que traiga la imagen de un enlace (de un anuncio, por ejemplo). Devuelve un Blob. */
   function traerDeEnlace(url) {
@@ -546,7 +548,10 @@
     // pasar al inventario con los datos ya puestos
     $('[data-pasar-inventario]').addEventListener('click', function (e) {
       var q = new URLSearchParams();
-      ['titulo', 'anio', 'km', 'precio_venta', 'precio_compra', 'marca', 'modelo', 'version', 'combustible', 'cambio', 'potencia_cv'].forEach(function (k) { if (calc.elements[k] && calc.elements[k].value) q.set(k, calc.elements[k].value); });
+      ['titulo', 'anio', 'km', 'precio_venta', 'precio_compra', 'marca', 'modelo', 'version', 'combustible', 'cambio', 'potencia_cv', 'carroceria', 'puertas', 'color', 'etiqueta_dgt', 'etiqueta_estimada'].forEach(function (k) { if (calc.elements[k] && calc.elements[k].value) q.set(k, calc.elements[k].value); });
+      // la descripción y las fotos no caben en la dirección: van por el navegador
+      var a = window.LIDI.anuncio;
+      if (a) { q.set('origen', 'calculadora'); try { sessionStorage.setItem('lidi-anuncio', JSON.stringify({ descripcion: a.descripcion || '', fotos: a.fotos || [] })); } catch (err) { /* sin almacenamiento */ } }
       e.currentTarget.href = '/admin/coche/nuevo?' + q.toString();
     });
     // leer anuncio
@@ -566,10 +571,13 @@
         if (d.anio) calc.elements.anio.value = d.anio;
         if (d.km) calc.elements.km.value = d.km;
         if (d.co2) calc.elements.co2.value = d.co2;
-        ['marca', 'modelo', 'version', 'combustible', 'cambio', 'potencia_cv'].forEach(function (k) { if (calc.elements[k]) calc.elements[k].value = d[k] || ''; });
+        ['marca', 'modelo', 'version', 'combustible', 'cambio', 'potencia_cv', 'carroceria', 'puertas', 'color', 'etiqueta_dgt'].forEach(function (k) { if (calc.elements[k]) calc.elements[k].value = d[k] || ''; });
+        if (calc.elements.etiqueta_estimada) calc.elements.etiqueta_estimada.value = d.etiqueta_estimada ? '1' : '';
+        window.LIDI.anuncio = d;
+        var tras = $('[data-tras-leer]'); if (tras) tras.hidden = false;
         var r = calc.querySelector('[name=origen][value=' + (d.origen || 'espana') + ']'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
         var faltan = ['precio', 'anio', 'km'].filter(function (k) { return !d[k]; });
-        aviso.textContent = 'Leído de ' + (d.portal || 'el anuncio') + (faltan.length ? '. No he encontrado: ' + faltan.join(', ') + '. Rellénalo a mano.' : '.');
+        aviso.textContent = d.bloqueado ? (d.portal || 'El portal') + ' no ha dejado leer la página: he sacado del enlace lo que dice (marca, modelo, año…). Pon el precio y los km a mano.' : 'Leído de ' + (d.portal || 'el anuncio') + (faltan.length ? '. No he encontrado: ' + faltan.join(', ') + '. Rellénalo a mano.' : '.') + (d.fotos && d.fotos.length ? ' ' + d.fotos.length + ' fotos para el alta.' : '');
         calcular();
       }).catch(function (err) {
         if (err.message === 'sesion') return;
@@ -934,6 +942,65 @@
     };
     botonEnlace.addEventListener('click', traer);
     enlaceFoto.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); traer(); } });
+  }
+
+  // fotos del anuncio (de una captación o de la calculadora): se traen y se suben como las demás
+  var cajaAnuncio = $('[data-fotos-anuncio]', form);
+  var fotosAnuncio = [];
+  try { fotosAnuncio = JSON.parse(cajaAnuncio ? cajaAnuncio.getAttribute('data-fotos-anuncio') || '[]' : '[]'); } catch (e) { fotosAnuncio = []; }
+  if (form.getAttribute('data-desde-calculadora') === '1') {
+    try {
+      var del = JSON.parse(sessionStorage.getItem('lidi-anuncio') || 'null');
+      sessionStorage.removeItem('lidi-anuncio');
+      if (del) {
+        var desc = $('[name=descripcion]', form);
+        if (desc && !desc.value.trim() && del.descripcion) desc.value = del.descripcion;
+        if (Array.isArray(del.fotos)) fotosAnuncio = del.fotos;
+      }
+    } catch (e) { /* sin almacenamiento */ }
+  }
+  if (cajaAnuncio && fotosAnuncio.length) {
+    cajaAnuncio.hidden = false;
+    $('[data-fotos-anuncio-texto]', cajaAnuncio).textContent = 'Hay ' + fotosAnuncio.length + ' fotos en el anuncio.';
+    var botonAnuncio = $('[data-traer-fotos-anuncio]', cajaAnuncio);
+    botonAnuncio.addEventListener('click', function () {
+      var libres = MAX_FOTOS - fotos.length - cola.length - (subiendo ? 1 : 0);
+      var lista = fotosAnuncio.slice(0, Math.max(0, libres));
+      if (!lista.length) { avisar('Ya tiene ' + MAX_FOTOS + ' fotos, el máximo.', 'error'); return; }
+      botonAnuncio.disabled = true;
+      var hechas = 0, fallos = 0;
+      var una = function (i) {
+        if (i >= lista.length) {
+          botonAnuncio.textContent = fallos ? 'Traídas ' + hechas + ' (' + fallos + ' no se pudieron)' : 'Fotos traídas';
+          if (fallos && !hechas) { botonAnuncio.disabled = false; botonAnuncio.textContent = 'Volver a intentarlo'; avisar('El portal no deja descargar sus fotos. Guárdalas en el móvil y súbelas con «Añadir fotos».', 'error'); }
+          return;
+        }
+        botonAnuncio.textContent = 'Trayendo ' + (i + 1) + ' de ' + lista.length + '…';
+        traerDeEnlace(lista[i]).then(function (blob) {
+          hechas++;
+          encolar([new File([blob], 'anuncio-' + (i + 1) + '.' + (blob.type.split('/')[1] || 'jpg'), { type: blob.type })]);
+        }).catch(function (err) { if (err.message === 'sesion') throw err; fallos++; }).then(function () { una(i + 1); });
+      };
+      una(0);
+    });
+  }
+  // modelos de la marca elegida (los de la lista y los que ya hay en el inventario)
+  var marcaInput = $('[name=marca]', form), listaModelos = $('#lista-modelos');
+  if (marcaInput && listaModelos) {
+    var marcaPedida = '';
+    var pedirModelos = function () {
+      var m = marcaInput.value.trim();
+      if (!m || m === marcaPedida) return;
+      marcaPedida = m;
+      fetch('/api/admin/modelos?marca=' + encodeURIComponent(m), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.ok || marcaInput.value.trim() !== m || !j.modelos.length) return;
+        listaModelos.innerHTML = '';
+        j.modelos.forEach(function (x) { var o = document.createElement('option'); o.value = x; listaModelos.appendChild(o); });
+      }).catch(function () { /* se quedan las sugerencias de siempre */ });
+    };
+    marcaInput.addEventListener('change', pedirModelos);
+    marcaInput.addEventListener('blur', pedirModelos);
+    pedirModelos();
   }
 
   // ------------------------------------------------------------ cambios sin guardar y borrador en este dispositivo

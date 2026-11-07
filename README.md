@@ -30,6 +30,14 @@ Para un concesionario nuevo: copiar este repo, cambiar esos archivos y publicar.
   configurado, le llegan por correo. La cuenta de Resend es compartida con la peluquería: por eso hay un **tope de
   correos al día** (`NEGOCIO.topeCorreosDia`); pasado el tope los mensajes siguen entrando en el panel y en el móvil.
 - **«Reservar por 100 €»** sale **oculto** al principio (`NEGOCIO.ocultosIniciales`). El dueño lo enciende en Tu web.
+- **Captaciones** (`/admin/captaciones`): coches de particulares que el concesionario vende por ellos (el dueño cobra un
+  precio neto y la diferencia es la comisión). Ficha con los datos y fotos del anuncio (coches.net se lee entero; si
+  bloquea, lo del enlace), **tasación por coches parecidos** en coches.net y AutoScout24 (`src/lib/tasacion.js`),
+  comisión, **contrato con firma por enlace** (`/firmar/<token>`: el vendedor pone su DNI y firma con el dedo; se guarda
+  el registro con fecha, IP, navegador y huella SHA-256) y paso al inventario con todo puesto. La plantilla del
+  contrato, los datos de la empresa y la firma del dueño están en Ajustes → Contratos; los valores por defecto salen de
+  `NEGOCIO` (`src/lib/marca.js`). El PDF lo monta el navegador (`dist/js/contrato-pdf.js`, pdf-lib): en el Worker
+  gastaría más CPU de la que da el plan gratuito. Los correos de los contratos no cuentan para el tope diario.
 
 Variables del proyecto de Pages (opcionales, para el correo):
 

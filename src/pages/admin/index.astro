@@ -7,9 +7,10 @@ import { ultimosSinLeer } from '../../lib/datos.js';
 import { usoFotos } from '../../lib/fotos.js';
 import { recuperarPendientes } from '../../lib/pendientes.js';
 import { euros } from '../../lib/formato.js';
+import { contarPendientesFirma } from '../../lib/captaciones.js';
 const env = Astro.locals.runtime.env;
 await recuperarPendientes(env); // mensajes que llegaron mientras la base de datos no respondía
-const [r, sinLeer, uso] = await Promise.all([resumenPanel(env.DB), ultimosSinLeer(env.DB, 3), usoFotos(env.DB).catch(() => null)]);
+const [r, sinLeer, uso, sinFirmar] = await Promise.all([resumenPanel(env.DB), ultimosSinLeer(env.DB, 3), usoFotos(env.DB).catch(() => null), contarPendientesFirma(env.DB).catch(() => 0)]);
 const n = (e) => r.estados[e] ?? 0;
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const nombreMes = MESES[Number(r.ventas.mes.slice(5, 7)) - 1];
@@ -59,6 +60,7 @@ const bienvenida = Astro.url.searchParams.has('bienvenida'); // recién puesta s
 
   <div class="tarjetas-resumen">
     <a class="resumen" href="/admin/mensajes?nuevos=1"><b>{r.mensajesNuevos}</b><span>mensajes nuevos</span></a>
+    {sinFirmar > 0 && <a class="resumen" href={`/admin/captaciones?estado=${encodeURIComponent('Pendiente de firma')}`}><b>{sinFirmar}</b><span>{sinFirmar === 1 ? 'contrato sin firmar' : 'contratos sin firmar'}</span></a>}
     <a class="resumen" href="/admin/inventario"><b>{n('Disponible')}</b><span>coches disponibles</span></a>
     <a class="resumen" href="/admin/inventario"><b>{n('Próximamente') + n('Reservado')}</b><span>próximamente / reservados</span></a>
     <a class="resumen" href="/admin/ventas"><b>{r.ventas.coches}</b><span>vendidos en {nombreMes}</span></a>
