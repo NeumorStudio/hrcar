@@ -18,7 +18,22 @@ const meta = (html, nombre) => {
     || html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${nombre}["']`, 'i'));
   return m ? decodificar(m[1]) : null;
 };
-const decodificar = (t) => t.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+// Entidades HTML a texto, en una sola pasada (así «&amp;lt;» queda «&lt;» y no «<»). Entiende las numéricas, decimales y
+// hexadecimales («&#38;», «&#x27;», «&#243;»), que es como las escriben muchos portales y generadores de páginas.
+const ENTIDADES = {
+  amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ',
+  aacute: 'á', eacute: 'é', iacute: 'í', oacute: 'ó', uacute: 'ú', Aacute: 'Á', Eacute: 'É', Iacute: 'Í', Oacute: 'Ó', Uacute: 'Ú',
+  ntilde: 'ñ', Ntilde: 'Ñ', uuml: 'ü', Uuml: 'Ü', ccedil: 'ç', iexcl: '¡', iquest: '¿', euro: '€', copy: '©', reg: '®', deg: '°',
+  ordm: 'º', ordf: 'ª', laquo: '«', raquo: '»', hellip: '…', ndash: '–', mdash: '—', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+};
+export const decodificar = (t) => String(t ?? '').replace(/&(#x[0-9a-f]{1,6}|#\d{1,7}|[a-z]{2,8});/gi, (entidad, c) => {
+  if (c[0] !== '#') {
+    const nombre = Object.hasOwn(ENTIDADES, c) ? c : c.toLowerCase();
+    return Object.hasOwn(ENTIDADES, nombre) ? ENTIDADES[nombre] : entidad;
+  }
+  const n = c[1] === 'x' || c[1] === 'X' ? parseInt(c.slice(2), 16) : parseInt(c.slice(1), 10);
+  return n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : entidad;
+}).trim();
 const numero = (t) => { if (t == null) return null; const n = Number(String(t).replace(/[^\d,.]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.')); return Number.isFinite(n) ? Math.round(n) : null; };
 const limpiarMarca = (m) => (m ? String(m).replace(/^VW$/i, 'Volkswagen').replace(/^Mercedes$/i, 'Mercedes-Benz').replace(/^SEAT$/i, 'SEAT').trim() : null);
 const normalizarCombustible = (t) => {
