@@ -76,6 +76,12 @@ export async function POST({ request, locals }) {
     }));
     return json({ ok: true });
   }
+  if (d.accion === 'guia') {
+    // guías de la primera vez: al pulsar «Entendido» dejan de salir abiertas
+    if (!['captaciones'].includes(d.guia)) return json({ ok: false, error: 'Guía desconocida.' }, 400);
+    await guardarAjuste(db, `guia_${d.guia}`, '1');
+    return json({ ok: true });
+  }
   if (d.accion === 'firmante') {
     // el paso de firma al mandar el primer contrato: solo el NIF y quién firma, sin tocar lo demás
     const t = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);

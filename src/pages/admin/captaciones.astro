@@ -3,7 +3,10 @@
 import Admin from '../../layouts/Admin.astro';
 import { listarCaptaciones, ESTADOS_CAPTACION, comision } from '../../lib/captaciones.js';
 import { euros, kms } from '../../lib/formato.js';
+import { ajuste } from '../../lib/datos.js';
 const db = Astro.locals.runtime.env.DB;
+// la guía sale abierta hasta que el dueño pulsa «Entendido»; luego queda plegada por si la quiere volver a ver
+const guiaVista = !!(await ajuste(db, 'guia_captaciones'));
 const filtro = ESTADOS_CAPTACION.includes(Astro.url.searchParams.get('estado') || '') ? Astro.url.searchParams.get('estado') : '';
 const { captaciones, cuenta, activas } = await listarCaptaciones(db, { estado: filtro });
 const ESTADO_CONTRATO = { Pendiente: 'Contrato enviado', Visto: 'Contrato abierto, sin firmar', Firmado: 'Contrato firmado', Anulado: 'Contrato anulado' };
@@ -15,6 +18,18 @@ const contratoTexto = (c) => {
 ---
 <Admin titulo="Captaciones" seccion="captaciones">
   <div class="fila-titulo"><div><h1>Captaciones</h1><p class="suave">Coches de particulares que vendes tú: del anuncio al contrato firmado y a la venta.</p></div></div>
+  <details class={`caja guia${guiaVista ? '' : ' bienvenida'}`} open={!guiaVista} data-guia-captaciones>
+    <summary><b>Cómo funciona, en 5 pasos</b></summary>
+    <ol>
+      <li><b>Capta el coche.</b> Pega abajo el enlace del anuncio, o pulsa «Captar este coche» en un mensaje de tasación de tu web. Los datos y las fotos se rellenan solos.</li>
+      <li><b>Pon los números.</b> «Tasar» busca coches parecidos y te propone un precio de venta. Pon lo que recibe el vendedor y verás tu comisión.</li>
+      <li><b>Mándale el contrato</b> por WhatsApp, por correo o con un enlace. La primera vez te pide tu firma y tu NIF, y se guardan para los siguientes.</li>
+      <li><b>El vendedor lo firma en su móvil</b> con su DNI y el dedo. Te llega un aviso y el PDF queda guardado en la ficha.</li>
+      <li><b>Publícalo.</b> «Publicar en el inventario» lo sube a tu web con todo puesto. Cuando lo vendas, tu comisión sale en Ventas.</li>
+    </ol>
+    <p class="suave" style="margin:10px 0 0">El contrato es uno de venta en exclusiva. Puedes cambiar el texto, la garantía y la compensación en <a href="/admin/ajustes#contratos">Ajustes → Contratos</a>.</p>
+    {!guiaVista && <div class="botonera" style="margin-top:12px"><button type="button" class="boton" data-guia-entendido>Entendido</button></div>}
+  </details>
   <div class="caja">
     <form data-nueva-captacion class="form-tarea">
       <label class="campo" style="flex:1;min-width:240px"><span>Pega el enlace del anuncio (coches.net, Wallapop, AutoScout24, Milanuncios…)</span><input type="url" name="url" placeholder="https://www.coches.net/…" required inputmode="url" /></label>

@@ -98,6 +98,17 @@
       .then(function () { boton.disabled = false; });
   }
 
+  // ------------------------------------------------------------ guía de la primera vez: «Entendido» la pliega para siempre
+  var guia = $('[data-guia-captaciones]');
+  var entendido = guia && $('[data-guia-entendido]', guia);
+  if (entendido) entendido.addEventListener('click', function () {
+    entendido.disabled = true;
+    pedir('/api/admin/ajustes', 'POST', { accion: 'guia', guia: 'captaciones' }).then(function () {
+      guia.open = false; guia.classList.remove('bienvenida'); entendido.parentNode.remove();
+      avisar('La guía queda aquí arriba por si la necesitas', 'ok');
+    }).catch(function (err) { fallo(err); entendido.disabled = false; });
+  });
+
   // ------------------------------------------------------------ nueva captación desde un enlace
   var nueva = $('[data-nueva-captacion]');
   if (nueva) nueva.addEventListener('submit', function (e) {

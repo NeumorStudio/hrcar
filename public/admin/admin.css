@@ -373,3 +373,6 @@ nav.pestanas { margin-bottom: 14px; }
 p.aviso-caja { padding: 8px 12px; background: #fffbeb; border-radius: 6px; }
 button.enlace { background: none; border: 0; padding: 0; color: var(--azul); text-decoration: underline; cursor: pointer; font: inherit; }
 .error-paso { color: var(--rojo); font-weight: 600; margin: 10px 0 0; }
+.guia summary { cursor: pointer; }
+.guia ol { margin: 10px 0 0; padding-left: 20px; }
+.guia li { margin: 6px 0; }
