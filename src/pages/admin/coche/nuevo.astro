@@ -2,12 +2,17 @@
 import Admin from '../../../layouts/Admin.astro';
 import FormularioCoche from '../../../components/FormularioCoche.astro';
 import { obtenerCoche, marcasYModelos } from '../../../lib/datos.js';
+import { obtenerCaptacion, ajustesContrato } from '../../../lib/captaciones.js';
 const db = Astro.locals.runtime.env.DB;
 // «Duplicar»: el alta sale con los datos de otro coche (sin fotos, matrícula, kilómetros ni datos internos)
 const desde = Astro.url.searchParams.get('desde');
-const [{ marcas, modelos }, base] = await Promise.all([marcasYModelos(db), desde ? obtenerCoche(db, desde) : null]);
+// «Publicar en el inventario» desde una captación: el alta sale con todo lo del anuncio y los números del trato
+const idCaptacion = /^\d{1,12}$/.test(Astro.url.searchParams.get('captacion') || '') ? Number(Astro.url.searchParams.get('captacion')) : null;
+const [{ marcas, modelos }, base, captacion] = await Promise.all([marcasYModelos(db), desde ? obtenerCoche(db, desde) : null, idCaptacion ? obtenerCaptacion(db, idCaptacion) : null]);
+// la garantía del coche, la misma que promete el contrato que firmó el vendedor
+if (captacion) captacion.garantia_contrato = (await ajustesContrato(db)).garantia_meses;
 ---
 <Admin titulo="Añadir vehículo" seccion="inventario">
-  <div class="fila-titulo"><div><h1>Añadir vehículo</h1><p class="suave">{base ? <>Copiado de <b>{base.titulo}</b>: revisa los datos, pon los kilómetros y las fotos, y publica.</> : 'Rellena los pasos y pulsa «Publicar vehículo». Aparecerá en la web al momento.'}</p></div><a class="boton secundario" href="/admin/inventario">Cancelar</a></div>
-  <FormularioCoche coche={null} marcas={marcas} modelos={modelos} base={base} />
+  <div class="fila-titulo"><div><h1>Añadir vehículo</h1><p class="suave">{captacion ? <>Datos del anuncio de <b>{captacion.titulo}</b>: revísalos, trae las fotos en el paso 4 y publica.</> : base ? <>Copiado de <b>{base.titulo}</b>: revisa los datos, pon los kilómetros y las fotos, y publica.</> : 'Rellena los pasos y pulsa «Publicar vehículo». Aparecerá en la web al momento.'}</p></div><a class="boton secundario" href="/admin/inventario">Cancelar</a></div>
+  <FormularioCoche coche={null} marcas={marcas} modelos={modelos} base={base} captacion={captacion} />
 </Admin>

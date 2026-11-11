@@ -7,6 +7,8 @@ import { leerOcultos } from '../../lib/secciones.js';
 import { COSTES_POR_DEFECTO } from '../../lib/importacion.js';
 import { usoFotos } from '../../lib/fotos.js';
 import { vendidosConFotos } from '../../lib/datos.js';
+import { ajustesContrato } from '../../lib/captaciones.js';
+import { CAMPOS } from '../../lib/contrato.js';
 const env = Astro.locals.runtime.env;
 const costes = { ...COSTES_POR_DEFECTO, ...JSON.parse((await ajuste(env.DB, 'costes')) || '{}') };
 const correo = (await ajuste(env.DB, 'correo_avisos')) || env.CORREO_DESTINO || NEGOCIO.email;
@@ -17,6 +19,7 @@ const [soporte, quitado] = await Promise.all([haySoporte(env.DB), soporteQuitado
 const [enlacePendiente, ocultos] = await Promise.all([enlaceJuanPendiente(env.DB), leerOcultos(env.DB).catch(() => [])]);
 const fechaCorta = (ms) => new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' });
 const [uso, liberables] = await Promise.all([usoFotos(env.DB).catch(() => null), vendidosConFotos(env.DB, 180).catch(() => [])]);
+const contrato = await ajustesContrato(env.DB);
 const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
 ---
 <Admin titulo="Ajustes" seccion="ajustes">
@@ -34,6 +37,52 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
       <button class="boton" type="submit">Guardar</button>
     </form>
   </div>
+  <div class="caja" id="contratos">
+    <h2>Contratos de captación</h2>
+    <p class="suave">Lo que sale en el acuerdo que firma el vendedor cuando vendes su coche.</p>
+    <form data-api="/api/admin/ajustes" data-aviso="Datos del contrato guardados">
+      <input type="hidden" name="accion" value="contrato" />
+      <div class="dos">
+        <label class="campo"><span>Tu nombre o razón social</span><input type="text" name="empresa_nombre" value={contrato.empresa_nombre} required /></label>
+        <label class="campo"><span>NIF/CIF <span class="nota">(o tu DNI, si eres autónomo)</span></span><input type="text" name="empresa_nif" value={contrato.empresa_nif} style="text-transform:uppercase" /></label>
+        <label class="campo"><span>Domicilio</span><input type="text" name="empresa_domicilio" value={contrato.empresa_domicilio} /></label>
+        <label class="campo"><span>Quién firma <span class="nota">(nombre y apellidos)</span></span><input type="text" name="empresa_representante" value={contrato.empresa_representante} /></label>
+        <label class="campo"><span>Ciudad donde se firma</span><input type="text" name="ciudad" value={contrato.ciudad} /></label>
+        <label class="campo"><span>Días de exclusividad</span><input type="number" name="plazo_dias" min="1" max="365" value={contrato.plazo_dias} inputmode="numeric" /></label>
+        <label class="campo"><span>Días que vale el enlace para firmar</span><input type="number" name="dias_enlace" min="1" max="60" value={contrato.dias_enlace} inputmode="numeric" /></label>
+        <label class="campo"><span>Meses de garantía que gestionas</span><input type="number" name="garantia_meses" min="1" max="60" value={contrato.garantia_meses} inputmode="numeric" /></label>
+        <label class="campo"><span>Compensación si rompe la exclusiva</span><input type="text" name="penalizacion" maxlength="60" value={contrato.penalizacion} /></label>
+      </div>
+      <button class="boton" type="submit">Guardar</button>
+    </form>
+
+    <h3 style="margin-top:22px">Tu firma</h3>
+    <p class="suave">Se pone sola en cada contrato que mandas. Fírmala una vez con el dedo o el ratón.</p>
+    <div class="firma-ajustes" data-firma-ajustes>
+      {contrato.firma && <img src={contrato.firma} alt="Tu firma guardada" class="firma-guardada" data-firma-guardada />}
+      <div class="lienzo-firma" data-lienzo-firma hidden={!!contrato.firma}><canvas></canvas><span class="pista">Firma aquí</span></div>
+      <div class="botonera" style="margin-top:8px">
+        <button type="button" class="boton" data-guardar-firma hidden={!!contrato.firma}>Guardar firma</button>
+        <button type="button" class="boton secundario" data-repetir-firma>{contrato.firma ? 'Cambiar la firma' : 'Borrar y repetir'}</button>
+      </div>
+    </div>
+
+    <h3 style="margin-top:22px">Texto del contrato</h3>
+    {!contrato.plantilla_editada && <p class="suave">Es el contrato de serie (venta en exclusiva). Los nombres, el NIF, los precios, la garantía y la compensación salen solos de tus datos de arriba y de cada captación. Si quieres cambiar algo más, edita el texto y guarda: los huecos van entre llaves, por ejemplo <code>{'{{vendedor_dni}}'}</code>.</p>}
+    <form data-api="/api/admin/ajustes" data-aviso="Contrato guardado" data-recargar>
+      <input type="hidden" name="accion" value="plantilla" />
+      <label class="campo"><span>Texto <span class="nota">(una línea en blanco entre párrafos; «# » delante para el título y «## » para un apartado)</span></span><textarea name="plantilla" rows="18" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.85rem">{contrato.plantilla}</textarea></label>
+      <details style="margin-bottom:12px"><summary class="suave">Huecos que puedes usar</summary>
+        <table class="tabla"><tbody>{CAMPOS.map(([k, v]) => <tr><td><code>{`{{${k}}}`}</code></td><td>{v}</td></tr>)}</tbody></table>
+      </details>
+      <div class="botonera">
+        <button class="boton" type="submit">Guardar el contrato</button>
+        {contrato.plantilla_editada && <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"plantilla","restaurar":true}' data-recargar data-confirmar="¿Volver al contrato de serie? Se pierden los cambios que has hecho en el texto.">Volver al contrato de serie</button>}
+      </div>
+      <p class="suave" style="margin-top:8px">Los contratos ya enviados no cambian: cada uno guarda el texto con el que se mandó.</p>
+    </form>
+  </div>
+
   <div class="caja">
     <h2>Gastos por defecto de la calculadora</h2>
     <p class="suave">Lo que sueles pagar. Se usan en cada cálculo nuevo y puedes ajustarlos en cada caso.</p>

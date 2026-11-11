@@ -61,6 +61,7 @@ const siguiente = hayMas && mensajes.length ? `${base}${soloNuevos ? '&' : '?'}a
         )}
         <div class="acciones-msg">
           {m.telefono && <a class="boton pequeno" href={`tel:${tel(m.telefono)}`} data-contactar>Llamar</a>}
+          {m.formulario === 'tasacion' && <button type="button" class="boton secundario pequeno" data-captar-mensaje={m.id}>Captar este coche</button>}
           {wa && <a class="boton secundario pequeno" href={wa} target="_blank" rel="noopener" data-contactar>WhatsApp</a>}
           {m.email && <a class="boton secundario pequeno" href={enlaceEmail(m)} data-contactar>Responder por email</a>}
           {m.cliente_id && <a class="boton secundario pequeno" href={`/admin/clientes/${m.cliente_id}`}>Ver cliente</a>}

@@ -16,6 +16,7 @@ const enlaces = [
   ['clientes', '/admin/clientes', 'Clientes'],
   ['tareas', '/admin/tareas', 'Tareas'],
   ['ventas', '/admin/ventas', 'Ventas'],
+  ['captaciones', '/admin/captaciones', 'Captaciones'],
   ['calculadora', '/admin/calculadora', 'Calculadora'],
   ['mensajes', '/admin/mensajes', 'Mensajes'],
   ['web', '/admin/web', 'Tu web'],
@@ -30,7 +31,7 @@ const ICONOS: Record<string, string> = {
 };
 const icono = (id: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONOS[id]}</svg>`;
 const abajo = [['inicio', '/admin', 'Inicio'], ['inventario', '/admin/inventario', 'Coches'], ['mensajes', '/admin/mensajes', 'Mensajes'], ['clientes', '/admin/clientes', 'Clientes']];
-const enMas = ['tareas', 'ventas', 'calculadora', 'web', 'ajustes'].includes(seccion);
+const enMas = ['tareas', 'ventas', 'captaciones', 'calculadora', 'web', 'ajustes'].includes(seccion);
 // cambia con cada publicación: el móvil del dueño no se queda con un admin.js viejo
 // eslint-disable-next-line no-undef
 const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
@@ -52,6 +53,7 @@ const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
     <meta name="apple-mobile-web-app-title" content={NEGOCIO.nombre} />
     <link rel="stylesheet" href={`/admin/admin.css?v=${VERSION}`} />
     <script src={`/admin/admin.js?v=${VERSION}`} defer></script>
+    <script src={`/admin/captaciones.js?v=${VERSION}`} defer></script>
   </head>
   <body class={sinMenu ? 'sin-menu' : 'con-barra'}>
     {!sinMenu && (
@@ -89,6 +91,7 @@ const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
           <div class="hoja" role="dialog" aria-label="Más secciones">
             <a href="/admin/tareas" class={seccion === 'tareas' ? 'activo' : ''}>Tareas</a>
             <a href="/admin/ventas" class={seccion === 'ventas' ? 'activo' : ''}>Ventas</a>
+            <a href="/admin/captaciones" class={seccion === 'captaciones' ? 'activo' : ''}>Captaciones y contratos</a>
             <a href="/admin/calculadora" class={seccion === 'calculadora' ? 'activo' : ''}>Calculadora de importación</a>
             <a href="/admin/web" class={seccion === 'web' ? 'activo' : ''}>Tu web: qué se ve</a>
             <a href="/admin/ajustes" class={seccion === 'ajustes' ? 'activo' : ''}>Ajustes y copia de seguridad</a>

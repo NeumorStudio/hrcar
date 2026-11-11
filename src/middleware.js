@@ -48,7 +48,7 @@ export async function onRequest(context, next) {
   // peticiones que cambian cosas (formularios y panel): solo desde la propia web
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     const origen = request.headers.get('origin');
-    if (origen && origen !== visible.origen && origen !== url.origin && !PROPIOS.has(origen)) return json({ ok: false, error: 'origen' }, 403);
+    if (origen && origen !== visible.origen && origen !== url.origin && !PROPIOS.has(origen) && origen !== locals.runtime?.env?.SITIO_PUBLICO) return json({ ok: false, error: 'origen' }, 403);
   }
 
   if (esAdmin && env) {
