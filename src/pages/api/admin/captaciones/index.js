@@ -1,5 +1,5 @@
 // Nueva captación a partir del enlace de un anuncio (o con los datos ya leídos en la calculadora).
-import { leerAnuncio, portal } from '../../../../lib/anuncio.js';
+import { leerAnuncio, portal, normalizarCombustible, normalizarCambio } from '../../../../lib/anuncio.js';
 import { crearCaptacion, actualizarCaptacion } from '../../../../lib/captaciones.js';
 import { marcaConocida } from '../../../../data/modelos.js';
 const json = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
@@ -16,10 +16,12 @@ export async function POST({ request, locals }) {
     const buscar = (re) => { const k = Object.keys(campos).find((x) => re.test(x)); return k ? String(campos[k]).trim() : null; };
     const numero = (t) => { const n = Number(String(t || '').replace(/[^\d]/g, '')); return Number.isFinite(n) && n > 0 ? n : null; };
     const marca = buscar(/^(marca|make|brand)$/i);
+    // el formulario de la web es texto libre o lista («diesel», «Híbrido»…): se pasa a los valores de la ficha
+    const combustible = buscar(/^(combustible|fuel)$/i);
     const datos = {
       portal: 'Tu web', marca: marcaConocida(marca) || marca, modelo: buscar(/^(modelo|model)$/i), version: buscar(/^(version|versi[oó]n|variant)$/i),
       anio: numero(buscar(/^(a[nñ]o|anio|year|matriculacion|fecha_matriculacion)$/i))?.toString().slice(0, 4) || null, km: numero(buscar(/^(km|kms|kilometros|kil[oó]metros|mileage)$/i)),
-      combustible: buscar(/^(combustible|fuel)$/i), cambio: /autom/i.test(buscar(/^(cambio|transmision|gearbox)$/i) || '') ? 'Automático' : /manual/i.test(buscar(/^(cambio|transmision|gearbox)$/i) || '') ? 'Manual' : null,
+      combustible: normalizarCombustible(combustible) || combustible, cambio: normalizarCambio(buscar(/^(cambio|transmisi[oó]n|transmission|gearbox)$/i)),
       titulo: m.coche || null,
     };
     const precio = numero(buscar(/^(precio|price|precio_deseado|precio_pedido)$/i));

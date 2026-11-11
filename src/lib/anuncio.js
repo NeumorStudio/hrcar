@@ -36,7 +36,7 @@ export const decodificar = (t) => String(t ?? '').replace(/&(#x[0-9a-f]{1,6}|#\d
 }).trim();
 const numero = (t) => { if (t == null) return null; const n = Number(String(t).replace(/[^\d,.]/g, '').replace(/\.(?=\d{3})/g, '').replace(',', '.')); return Number.isFinite(n) ? Math.round(n) : null; };
 const limpiarMarca = (m) => (m ? String(m).replace(/^VW$/i, 'Volkswagen').replace(/^Mercedes$/i, 'Mercedes-Benz').replace(/^SEAT$/i, 'SEAT').trim() : null);
-const normalizarCombustible = (t) => {
+export const normalizarCombustible = (t) => {
   if (!t) return null;
   const s = String(t).toLowerCase();
   if (/enchuf|plug-?in|phev/.test(s)) return 'Híbrido enchufable';
@@ -48,7 +48,7 @@ const normalizarCombustible = (t) => {
   if (/gasolina|benzin|petrol|^b$|^g$/.test(s)) return 'Gasolina';
   return null;
 };
-const normalizarCambio = (t) => (!t ? null : /autom|dsg|s[- ]tronic|tiptronic/i.test(t) ? 'Automático' : /manual|schalt/i.test(t) ? 'Manual' : null);
+export const normalizarCambio = (t) => (!t ? null : /autom|dsg|s[- ]tronic|tiptronic/i.test(t) ? 'Automático' : /manual|schalt/i.test(t) ? 'Manual' : null);
 
 /** Texto de una descripción: sin etiquetas HTML ni entidades, con los saltos de línea de siempre. */
 export const textoLimpio = (t, max = 5000) => {
