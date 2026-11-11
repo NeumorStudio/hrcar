@@ -1,7 +1,7 @@
 // Captaciones (coches de particulares que el concesionario vende por ellos) y sus contratos.
 import { preparar, ajuste } from './datos.js';
 import { COSTES_POR_DEFECTO } from './importacion.js';
-import { PLANTILLA_PROVISIONAL, tokenNuevo, fechaLarga } from './contrato.js';
+import { PLANTILLA_SERIE, tokenNuevo, fechaLarga, usaCampo } from './contrato.js';
 import { MARCA } from './marca.js';
 
 export const ESTADOS_CAPTACION = ['Contactado', 'Pendiente de firma', 'Firmado', 'Publicado', 'Vendido', 'Descartado'];
@@ -24,6 +24,7 @@ const entero = (v, min = 0, max = 10000000) => {
 /** Datos de la empresa y opciones de los contratos (Ajustes → Contratos). */
 export async function ajustesContrato(db) {
   const g = json(await ajuste(db, 'contrato_ajustes'), {});
+  const propia = await ajuste(db, 'contrato_plantilla');
   return {
     empresa_nombre: g.empresa_nombre || MARCA.nombre,
     empresa_nif: g.empresa_nif || '',
@@ -32,9 +33,11 @@ export async function ajustesContrato(db) {
     ciudad: g.ciudad || MARCA.localidad,
     plazo_dias: Number(g.plazo_dias) || 60,
     dias_enlace: Number(g.dias_enlace) || 14,
-    plantilla: (await ajuste(db, 'contrato_plantilla')) || MARCA.plantilla || PLANTILLA_PROVISIONAL,
-    plantilla_propia: !!(await ajuste(db, 'contrato_plantilla')) || !!MARCA.plantilla,
-    plantilla_editada: !!(await ajuste(db, 'contrato_plantilla')),
+    garantia_meses: Number(g.garantia_meses) || MARCA.garantia_meses || 12,
+    penalizacion: g.penalizacion || MARCA.penalizacion || '1.000 € + IVA',
+    // el contrato de serie hasta que el dueño guarde el suyo
+    plantilla: propia || PLANTILLA_SERIE,
+    plantilla_editada: !!propia,
     firma: (await ajuste(db, 'contrato_firma')) || null,
   };
 }
@@ -161,6 +164,16 @@ export function valoresContrato(cap, aj) {
     coche: [d.marca, d.modelo, d.version].filter(Boolean).join(' ') || cap.titulo, matricula: MAYUS(cap.matricula), bastidor: null,
     km: d.km != null ? String(d.km).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : null, anio: d.anio ? String(d.anio) : null,
     precio_neto: eurosTexto(cap.precio_neto), plazo_dias: String(aj.plazo_dias),
+    garantia_meses: String(aj.garantia_meses), penalizacion: aj.penalizacion,
+  };
+}
+
+/** Lo que falta del dueño para mandar un contrato: su firma y, si el texto los pide, su NIF y quién firma. */
+export function faltaDelDueno(aj) {
+  return {
+    firma: !aj.firma,
+    nif: !aj.empresa_nif && usaCampo(aj.plantilla, 'empresa_nif'),
+    quien: !aj.empresa_representante && usaCampo(aj.plantilla, 'empresa_representante'),
   };
 }
 
@@ -168,6 +181,9 @@ export function valoresContrato(cap, aj) {
 export async function crearContrato(db, cap, aj, { canal, destino }) {
   if (cap.precio_neto == null) throw new Error('Pon primero lo que recibe el vendedor (precio neto).');
   if (!cap.vendedor_nombre) throw new Error('Pon primero el nombre del vendedor.');
+  // sin la firma (o el NIF) del dueño el contrato saldría con huecos: antes lo firma él
+  const f = faltaDelDueno(aj);
+  if (f.firma || f.nif || f.quien) throw new Error(`Antes de mandarlo, fírmalo tú: falta ${[f.firma && 'tu firma', f.nif && 'tu NIF', f.quien && 'quién firma'].filter(Boolean).join(' y ')}. Recarga la página y vuelve a enviarlo.`);
   const token = tokenNuevo();
   const caduca = new Date(Date.now() + aj.dias_enlace * 86400000).toISOString();
   const valores = valoresContrato(cap, aj);

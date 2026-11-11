@@ -10,4 +10,6 @@ export const MARCA = {
   domicilio: NEGOCIO.domicilio || NEGOCIO.direccion,
   titular: NEGOCIO.titular,
   logo: NEGOCIO.logo,
+  // huecos del contrato de serie (src/lib/contrato.js) que cambian de una web a otra; se cambian en Ajustes → Contratos
+  garantia_meses: 6,
 };

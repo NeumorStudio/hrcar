@@ -167,7 +167,7 @@
       var neto = num('precio_neto'), venta = num('precio_venta'), gastos = num('gastos') || 0;
       if (neto == null || venta == null) { comisionEl.textContent = '— pon el neto y el precio de venta'; comisionEl.className = ''; return; }
       var c = venta - neto - gastos;
-      comisionEl.textContent = eur(c) + (venta ? ' (' + Math.round(c / venta * 1000) / 10 + ' %)' : '');
+      comisionEl.textContent = eur(c) + (venta ? ' (' + String(Math.round(c / venta * 1000) / 10).replace('.', ',') + ' %)' : '');
       comisionEl.className = c >= 0 ? 'verde' : 'rojo';
     };
     var ayudas = leerJson('[data-ayudas-estado-cap]', {}) || {};
@@ -242,15 +242,67 @@
         (canal === 'correo' ? '<p>Se lo hemos mandado a <b>' + esc(ficha.elements.vendedor_email.value) + '</b>. También puedes mandárselo por WhatsApp:</p>' : '<p>Este es el mensaje con su enlace para firmar:</p>') +
         '<p class="mensaje-contrato">' + esc(j.mensaje).replace(/\n/g, '<br>') + '</p>', botones, function () { location.reload(); });
     };
+    // paso de firma: si al dueño le falta su firma (o su NIF, o quién firma), se lo pide antes de mandar el contrato
+    var falta = { firma: cajaK.hasAttribute('data-falta-firma'), nif: cajaK.hasAttribute('data-falta-nif'), quien: cajaK.hasAttribute('data-falta-quien') };
+    var pasoFirma = function () {
+      if (!falta.firma && !falta.nif && !falta.quien) return Promise.resolve(true);
+      return new Promise(function (listo) {
+        var hecho = false;
+        var html = '<p>El contrato sale con tu firma y tus datos. Fírmalo una vez: se guarda para los siguientes.</p>' +
+          (falta.quien ? '<label class="campo"><span>Quién firma <span class="nota">(nombre y apellidos)</span></span><input type="text" name="empresa_representante" autocomplete="name" /></label>' : '') +
+          (falta.nif ? '<label class="campo"><span>Tu NIF/CIF <span class="nota">(o tu DNI, si eres autónomo)</span></span><input type="text" name="empresa_nif" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" /></label>' : '') +
+          (falta.firma ? '<p style="margin:12px 0 6px"><b>Tu firma</b></p><div class="lienzo-firma" data-lienzo-paso><canvas></canvas><span class="pista">Firma aquí con el dedo o el ratón</span></div><p style="margin:6px 0 0"><button type="button" class="enlace" data-borrar-paso>Borrar y repetir</button></p>' : '') +
+          '<p class="error-paso" data-error-paso hidden></p>';
+        var d = dialogo('Antes de enviarlo, fírmalo tú', html, [
+          { texto: 'Firmar y enviar', clase: 'boton', cierra: false, hacer: function (e, el) { guardarPaso(el); } },
+          { texto: 'Cancelar' },
+        ], function () { if (!hecho) listo(false); });
+        var error = $('[data-error-paso]', d);
+        var pad = null;
+        if (falta.firma) {
+          pad = crearPad($('[data-lienzo-paso]', d));
+          pad.ajustar();
+          $('[data-borrar-paso]', d).addEventListener('click', function () { pad.borrar(); });
+        }
+        var primero = $('input', d);
+        if (primero) primero.focus();
+        var mal = function (texto, campo) { error.textContent = texto; error.hidden = false; if (campo) campo.focus(); };
+        var guardarPaso = function (boton) {
+          error.hidden = true;
+          var datos = {};
+          var quien = $('[name=empresa_representante]', d), nif = $('[name=empresa_nif]', d);
+          if (quien) { datos.empresa_representante = quien.value.trim(); if (datos.empresa_representante.length < 3) return mal('Pon tu nombre y apellidos.', quien); }
+          if (nif) { datos.empresa_nif = nif.value.trim(); if (!datos.empresa_nif) return mal('Pon tu NIF, CIF o DNI.', nif); }
+          var png = pad ? pad.png() : null;
+          if (pad && !png) return mal('Firma en el recuadro.');
+          boton.disabled = true; boton.textContent = 'Guardando…';
+          (quien || nif ? pedir('/api/admin/ajustes', 'POST', Object.assign({ accion: 'firmante' }, datos)) : Promise.resolve()).then(function () {
+            falta.quien = false; falta.nif = false;
+            return png ? pedir('/api/admin/ajustes', 'POST', { accion: 'firma', firma: png }) : null;
+          }).then(function () {
+            falta.firma = false;
+            var aviso = $('[data-aviso-falta]'); if (aviso) aviso.hidden = true;
+            hecho = true;
+            if (d.open && d.close) d.close();
+            d.remove();
+            listo(true);
+          }).catch(function (err) {
+            if (err && err.message !== 'sesion') mal(err.message);
+            boton.disabled = false; boton.textContent = 'Firmar y enviar';
+          });
+        };
+      });
+    };
     $$('[data-enviar-contrato]', cajaK).forEach(function (b) {
       b.addEventListener('click', function () {
         if (!listoParaEnviar()) return;
         var canal = b.getAttribute('data-enviar-contrato');
         var texto = b.textContent;
         b.disabled = true; b.textContent = 'Preparando…';
-        (sucio ? guardar(true) : Promise.resolve()).then(function () {
-          return pedir('/api/admin/captaciones/' + id + '/contrato', 'POST', { canal: canal });
-        }).then(function (j) { mostrarEnlace(j, canal); }).catch(fallo).then(function () { b.disabled = false; b.textContent = texto; });
+        (sucio ? guardar(true) : Promise.resolve()).then(pasoFirma).then(function (seguir) {
+          if (!seguir) return;
+          return pedir('/api/admin/captaciones/' + id + '/contrato', 'POST', { canal: canal }).then(function (j) { mostrarEnlace(j, canal); });
+        }).catch(fallo).then(function () { b.disabled = false; b.textContent = texto; });
       });
     });
     var pendiente = $('[data-enlace]', cajaK);

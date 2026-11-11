@@ -44,6 +44,11 @@ const rutasArchivo = join(dist, '_routes.json');
 const rutas = JSON.parse(readFileSync(rutasArchivo, 'utf8'));
 for (const r of ['/stock', '/admin/coche/*', '/admin/clientes', '/admin/captaciones', '/admin/imagenes', '/img-web/*']) if (!rutas.include.includes(r)) rutas.include.push(r);
 rutas.include = [...new Set(rutas.include)].filter((r) => !['/_server-islands/*', '/_image'].includes(r));
+// una regla que ya cubre otra con «*» (/admin/coche/* dentro de /admin/*, como deja el adaptador en Windows) hace que
+// Cloudflare rechace el archivo por reglas solapadas: se queda solo la que cubre
+const cubierta = (r, lista) => lista.some((o) => o !== r && o.endsWith('/*') && r.startsWith(o.slice(0, -1)));
+rutas.include = rutas.include.filter((r) => !cubierta(r, rutas.include));
+rutas.exclude = rutas.exclude.filter((r) => !cubierta(r, rutas.exclude));
 // En Windows el adaptador a veces deja cada archivo como una regla (o con «\»), y Cloudflare no admite reglas de más
 // de 100 caracteres ni más de 100 reglas: entonces se resume por carpetas y el Worker atiende todo lo demás.
 // RESUMIR_RUTAS=1 fuerza este camino para probarlo.

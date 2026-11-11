@@ -2,6 +2,7 @@
 import { leerAnuncio, portal, normalizarCombustible, normalizarCambio } from '../../../../lib/anuncio.js';
 import { crearCaptacion, actualizarCaptacion } from '../../../../lib/captaciones.js';
 import { marcaConocida } from '../../../../data/modelos.js';
+import { fechaDia } from '../../../../lib/contrato.js';
 const json = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 
 export async function POST({ request, locals }) {
@@ -26,7 +27,7 @@ export async function POST({ request, locals }) {
     };
     const precio = numero(buscar(/^(precio|price|precio_deseado|precio_pedido)$/i));
     const id = await crearCaptacion(db, { url: null, datos, precio_anuncio: precio });
-    await actualizarCaptacion(db, id, { vendedor_nombre: m.nombre, vendedor_telefono: m.telefono, vendedor_email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email || '') ? m.email : null, notas: `Llegó por «Vende tu coche» de la web (mensaje del ${String(m.fecha).slice(0, 10).split('-').reverse().join('/')}).` });
+    await actualizarCaptacion(db, id, { vendedor_nombre: m.nombre, vendedor_telefono: m.telefono, vendedor_email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email || '') ? m.email : null, notas: `Llegó por «Vende tu coche» de la web (mensaje del ${fechaDia(String(m.fecha))}).` });
     return json({ ok: true, id });
   }
   let url = null;

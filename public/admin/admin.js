@@ -521,7 +521,7 @@
       $('[data-resultado-coste]', calc).textContent = euros(coste);
       var venta = num('precio_venta');
       var ben = $('[data-resultado-beneficio]', calc);
-      if (venta) { var b = venta - coste; ben.textContent = euros(b) + ' (' + Math.round(b / venta * 1000) / 10 + ' %)'; ben.className = b < 0 ? 'rojo' : 'verde'; }
+      if (venta) { var b = venta - coste; ben.textContent = euros(b) + ' (' + String(Math.round(b / venta * 1000) / 10).replace('.', ',') + ' %)'; ben.className = b < 0 ? 'rojo' : 'verde'; }
       else { ben.textContent = '— pon un precio de venta'; ben.className = ''; }
     };
     calc.addEventListener('input', calcular);

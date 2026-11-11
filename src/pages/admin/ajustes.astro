@@ -50,6 +50,8 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
         <label class="campo"><span>Ciudad donde se firma</span><input type="text" name="ciudad" value={contrato.ciudad} /></label>
         <label class="campo"><span>Días de exclusividad</span><input type="number" name="plazo_dias" min="1" max="365" value={contrato.plazo_dias} inputmode="numeric" /></label>
         <label class="campo"><span>Días que vale el enlace para firmar</span><input type="number" name="dias_enlace" min="1" max="60" value={contrato.dias_enlace} inputmode="numeric" /></label>
+        <label class="campo"><span>Meses de garantía que gestionas</span><input type="number" name="garantia_meses" min="1" max="60" value={contrato.garantia_meses} inputmode="numeric" /></label>
+        <label class="campo"><span>Compensación si rompe la exclusiva</span><input type="text" name="penalizacion" maxlength="60" value={contrato.penalizacion} /></label>
       </div>
       <button class="boton" type="submit">Guardar</button>
     </form>
@@ -66,7 +68,7 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
     </div>
 
     <h3 style="margin-top:22px">Texto del contrato</h3>
-    {!contrato.plantilla_propia && <p class="aviso-caja">Ahora se usa una <b>plantilla provisional</b>. Cámbiala por vuestro contrato: pega aquí el texto y pon los huecos entre llaves, por ejemplo <code>{'{{vendedor_dni}}'}</code>.</p>}
+    {!contrato.plantilla_editada && <p class="suave">Es el contrato de serie (venta en exclusiva). Los nombres, el NIF, los precios, la garantía y la compensación salen solos de tus datos de arriba y de cada captación. Si quieres cambiar algo más, edita el texto y guarda: los huecos van entre llaves, por ejemplo <code>{'{{vendedor_dni}}'}</code>.</p>}
     <form data-api="/api/admin/ajustes" data-aviso="Contrato guardado" data-recargar>
       <input type="hidden" name="accion" value="plantilla" />
       <label class="campo"><span>Texto <span class="nota">(una línea en blanco entre párrafos; «# » delante para el título y «## » para un apartado)</span></span><textarea name="plantilla" rows="18" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.85rem">{contrato.plantilla}</textarea></label>
@@ -75,7 +77,7 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
       </details>
       <div class="botonera">
         <button class="boton" type="submit">Guardar el contrato</button>
-        {contrato.plantilla_editada && <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"plantilla","restaurar":true}' data-recargar data-confirmar="¿Volver al texto de serie? Se pierden los cambios que has hecho.">Volver al texto de serie</button>}
+        {contrato.plantilla_editada && <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"plantilla","restaurar":true}' data-recargar data-confirmar="¿Volver al contrato de serie? Se pierden los cambios que has hecho en el texto.">Volver al contrato de serie</button>}
       </div>
       <p class="suave" style="margin-top:8px">Los contratos ya enviados no cambian: cada uno guarda el texto con el que se mandó.</p>
     </form>

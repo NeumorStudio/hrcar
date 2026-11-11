@@ -2,9 +2,9 @@
 // Ficha de una captación: el coche, los números (lo que recibe el vendedor, a cuánto se vende y la comisión),
 // la tasación por coches parecidos, el vendedor, el contrato y el paso al inventario.
 import Admin from '../../../layouts/Admin.astro';
-import { obtenerCaptacion, ESTADOS_CAPTACION, AYUDA_ESTADO_CAPTACION, comision, ajustesContrato } from '../../../lib/captaciones.js';
+import { obtenerCaptacion, ESTADOS_CAPTACION, AYUDA_ESTADO_CAPTACION, comision, ajustesContrato, faltaDelDueno } from '../../../lib/captaciones.js';
 import { telWhatsApp } from '../../../lib/crm.js';
-import { fechaHora } from '../../../lib/contrato.js';
+import { fechaHora, fechaDia } from '../../../lib/contrato.js';
 import { origenPublico } from '../../../lib/origen.js';
 import { euros, kms } from '../../../lib/formato.js';
 const db = Astro.locals.runtime.env.DB;
@@ -22,12 +22,14 @@ const ultimo = c.contratos[0] || null;
 const pendiente = ultimo && ['Pendiente', 'Visto'].includes(ultimo.estado) ? ultimo : null;
 const firmado = c.contratos.find((k) => k.estado === 'Firmado') || null;
 const origen = origenPublico(Astro.request, Astro.locals.runtime.env);
-const faltaAjustes = [!aj.empresa_nif && 'tu NIF', !aj.empresa_representante && 'quién firma', !aj.firma && 'tu firma'].filter(Boolean);
-const fecha = (f) => (f ? f.slice(0, 10).split('-').reverse().join('/') : '');
+// lo que falte del dueño (firma, NIF…) se lo pide el panel al pulsar «Enviar», en un paso de firma
+const falta = faltaDelDueno(aj);
+const faltaAjustes = [falta.quien && 'quién firma', falta.nif && 'tu NIF', falta.firma && 'tu firma'].filter(Boolean);
+const fecha = fechaDia;
 const COMBUSTIBLES = ['Gasolina', 'Diésel', 'Híbrido gasolina', 'Híbrido diésel', 'Híbrido enchufable', 'Eléctrico', 'GLP', 'GNC'];
 const ESTADO_K = { Pendiente: 'Enviado, sin abrir', Visto: 'Abierto, sin firmar', Firmado: 'Firmado', Anulado: 'Anulado', Caducado: 'Caducado' };
 const CANAL = { whatsapp: 'WhatsApp', correo: 'correo', enlace: 'enlace copiado' };
-const INDICADOR = { 1: 'caro', 2: 'algo caro', 3: 'en precio', 4: 'buen precio', 5: 'muy buen precio' };
+const INDICADOR = { 1: 'caro', 2: 'algo caro', 3: 'en precio', 4: 'a buen precio', 5: 'a muy buen precio' };
 const enScript = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 const objetivo = { marca: d.marca, modelo: d.modelo, version: d.version, anio: d.anio, km: d.km, combustible: d.combustible, cambio: d.cambio, potencia_cv: d.potencia_cv, url: c.url, cochesnet: d.cochesnet };
 ---
@@ -90,7 +92,7 @@ const objetivo = { marca: d.marca, modelo: d.modelo, version: d.version, anio: d
           {!t && <p class="suave">Busca en coches.net y AutoScout24 coches del mismo modelo, años y kilómetros parecidos, y te dice a cuánto se venden.</p>}
         </div>
         {d.precio_medio && (
-          <p class="suave" style="margin:6px 0 0">coches.net calcula un precio medio de <b>{euros(d.precio_medio)}</b> para este coche{d.indicador_precio && INDICADOR[d.indicador_precio] ? ` y dice que el anuncio está a ${INDICADOR[d.indicador_precio]}` : ''}.</p>
+          <p class="suave" style="margin:6px 0 0">coches.net calcula un precio medio de <b>{euros(d.precio_medio)}</b> para este coche{d.indicador_precio && INDICADOR[d.indicador_precio] ? ` y dice que el anuncio está ${INDICADOR[d.indicador_precio]}` : ''}.</p>
         )}
       </div>
     </section>
@@ -123,10 +125,10 @@ const objetivo = { marca: d.marca, modelo: d.modelo, version: d.version, anio: d
     </div>
   </form>
 
-  <section class="caja" data-contrato-caja data-captacion-id={c.id} data-wa={wa}>
+  <section class="caja" data-contrato-caja data-captacion-id={c.id} data-wa={wa} data-falta-firma={falta.firma ? '1' : undefined} data-falta-nif={falta.nif ? '1' : undefined} data-falta-quien={falta.quien ? '1' : undefined} data-quien={aj.empresa_representante}>
     <h2>Contrato</h2>
-    {faltaAjustes.length > 0 && (
-      <p class="aviso-caja">Antes del primer contrato, completa en <a href="/admin/ajustes#contratos">Ajustes → Contratos</a>: {faltaAjustes.join(', ')}.{!aj.plantilla_propia && ' De momento se usa una plantilla provisional.'}</p>
+    {faltaAjustes.length > 0 && !firmado && (
+      <p class="aviso-caja" data-aviso-falta>Falta {faltaAjustes.join(' y ')} para el contrato. Te lo pido al enviarlo (o déjalo hecho en <a href="/admin/ajustes#contratos">Ajustes → Contratos</a>).</p>
     )}
     {firmado && (
       <div class="contrato-firmado">

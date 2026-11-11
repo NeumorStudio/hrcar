@@ -68,7 +68,7 @@ const ESQUEMA = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     titulo TEXT, url TEXT, datos TEXT NOT NULL DEFAULT '{}', creado TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  // Captaciones: coches de particulares que LIDIAUTO vende por ellos (precio neto para el dueño + su comisión).
+  // Captaciones: coches de particulares que el concesionario vende por ellos (precio neto para el dueño + su comisión).
   `CREATE TABLE IF NOT EXISTS captaciones (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     estado TEXT NOT NULL DEFAULT 'Contactado',

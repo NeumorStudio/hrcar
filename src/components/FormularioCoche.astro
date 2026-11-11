@@ -15,7 +15,7 @@ const dc = captacion?.datos || {};
 const desdeCaptacion = captacion ? {
   tipo: 'Ocasión', marca: dc.marca, modelo: dc.modelo, version: dc.version, combustible: dc.combustible, potencia_cv: dc.potencia_cv,
   carroceria: dc.carroceria, puertas: dc.puertas, cambio: dc.cambio, anio: dc.anio, km: dc.km, color: dc.color, etiqueta_dgt: dc.etiqueta_dgt,
-  garantia_meses: dc.garantia_meses ?? 12, descripcion: dc.descripcion, matricula: captacion.matricula,
+  garantia_meses: dc.garantia_meses ?? captacion.garantia_contrato ?? 12, descripcion: dc.descripcion, matricula: captacion.matricula,
   coste: captacion.precio_neto != null ? captacion.precio_neto + (captacion.gastos || 0) : undefined,
   precio: captacion.precio_venta ?? undefined,
   notas: [`Coche de ${captacion.vendedor_nombre || 'un particular'} (captación n.º ${captacion.id}).`, captacion.precio_neto != null ? `Recibe ${captacion.precio_neto} € al venderse; gastos ${captacion.gastos || 0} €.` : null, captacion.vendedor_telefono ? `Teléfono: ${captacion.vendedor_telefono}.` : null].filter(Boolean).join(' '),

@@ -4,13 +4,15 @@ import FormularioCoche from '../../../components/FormularioCoche.astro';
 import { obtenerCoche, marcasYModelos } from '../../../lib/datos.js';
 import { ventaDeCoche } from '../../../lib/crm.js';
 import { tituloLimpio } from '../../../lib/nombres.js';
+import { captacionDeCoche } from '../../../lib/captaciones.js';
+import { euros } from '../../../lib/formato.js';
 const db = Astro.locals.runtime.env.DB;
 const coche = await obtenerCoche(db, Astro.params.slug);
 if (!coche) return Astro.redirect('/admin/inventario');
-const [{ marcas, modelos }, venta] = await Promise.all([marcasYModelos(db), coche.estado === 'Vendido' ? ventaDeCoche(db, coche.slug) : null]);
+const [{ marcas, modelos }, venta, captacion] = await Promise.all([marcasYModelos(db), coche.estado === 'Vendido' ? ventaDeCoche(db, coche.slug) : null, captacionDeCoche(db, coche.slug)]);
 const verWeb = coche.estado !== 'Oculto';
 ---
 <Admin titulo={tituloLimpio(coche)} seccion="inventario">
-  <div class="fila-titulo"><div><h1>{tituloLimpio(coche)}</h1><p class="suave">Estado: <span class={`chip ${coche.estado}`}>{coche.estado}</span>{verWeb ? <> · <a href={`/stock/${coche.slug}`} target="_blank" rel="noopener">ver en la web ↗</a></> : ' · no sale en la web'}</p></div><a class="boton secundario" href="/admin/inventario">Volver</a></div>
+  <div class="fila-titulo"><div><h1>{tituloLimpio(coche)}</h1><p class="suave">Estado: <span class={`chip ${coche.estado}`}>{coche.estado}</span>{verWeb ? <> · <a href={`/stock/${coche.slug}`} target="_blank" rel="noopener">ver en la web ↗</a></> : ' · no sale en la web'}</p>{captacion && <p class="suave">Coche de {captacion.vendedor_nombre || 'un particular'}{captacion.precio_neto != null && `, que recibe ${euros(captacion.precio_neto)} al venderse`} · <a href={`/admin/captaciones/${captacion.id}`}>ver la captación y el contrato</a></p>}</div><a class="boton secundario" href="/admin/inventario">Volver</a></div>
   <FormularioCoche coche={coche} marcas={marcas} modelos={modelos} venta={venta} />
 </Admin>

@@ -4,41 +4,50 @@
 // La plantilla se cambia en Ajustes → Contratos. Al enviar un contrato se congela su texto: cambiar la plantilla
 // después no toca los contratos ya enviados.
 
-export const PLANTILLA_PROVISIONAL = `# ACUERDO DE INTERMEDIACIÓN PARA LA VENTA DE UN VEHÍCULO
+// Contrato de serie para todos los concesionarios: el «Contrato de venta en exclusiva» que usa LIDIAUTO. Cada dueño lo
+// puede cambiar en Ajustes → Contratos; lo que cambia de una web a otra (nombres, NIF, garantía, penalización…) va en huecos.
+export const PLANTILLA_SERIE = `# CONTRATO DE VENTA EN EXCLUSIVA
 
-En {{ciudad}}, a {{fecha}}.
+Entre el VENDEDOR, {{vendedor_nombre}}, con DNI/NIE {{vendedor_dni}}, y el ASESOR, {{empresa_representante}}, con DNI/NIF {{empresa_nif}}, de {{empresa_nombre}}.
 
-## REUNIDOS
+Fecha: {{fecha}}.
 
-De una parte, {{empresa_nombre}}, con NIF {{empresa_nif}} y domicilio en {{empresa_domicilio}}, representada por {{empresa_representante}} (en adelante, «el INTERMEDIARIO»).
+Vehículo: {{coche}}, matrícula {{matricula}}, con {{km}} kilómetros.
 
-De otra parte, {{vendedor_nombre}}, con DNI/NIE {{vendedor_dni}} y domicilio en {{vendedor_domicilio}}, teléfono {{vendedor_telefono}} (en adelante, «el VENDEDOR»).
+## 1. Encargo
 
-## EXPONEN
+El Vendedor encarga al Asesor la gestión profesional de la venta de su vehículo en régimen de exclusiva por un periodo de {{plazo_dias}} días.
 
-Que el VENDEDOR es titular del vehículo {{coche}}, matrícula {{matricula}}, con {{km}} kilómetros, y quiere venderlo a través del INTERMEDIARIO.
+## 2. Servicios incluidos
 
-## CLÁUSULAS
+El Asesor gestionará:
+- Publicación y promoción del vehículo.
+- Atención a interesados.
+- Negociación.
+- Gestión de la garantía de {{garantia_meses}} meses.
+- Cambio de titularidad ante la DGT.
 
-1. Encargo. El VENDEDOR encarga al INTERMEDIARIO buscar comprador para el vehículo y gestionar su venta.
+## 3. Exclusividad
 
-2. Precio para el vendedor. El VENDEDOR recibirá {{precio_neto}} por la venta del vehículo. El INTERMEDIARIO podrá ofrecerlo al precio que considere oportuno, y la diferencia entre el precio final de venta y esa cantidad será su retribución.
+Durante la vigencia del acuerdo:
+- El vehículo no podrá anunciarse ni venderse por cuenta propia.
+- Si el Vendedor encuentra comprador, la operación deberá formalizarse a través del Asesor.
 
-3. Exclusividad y plazo. Durante {{plazo_dias}} días desde la firma, el VENDEDOR no venderá el vehículo por su cuenta ni a través de terceros, y retirará en las 24 horas siguientes los anuncios que tenga publicados.
+## 4. Precio
 
-4. Anuncios y fotografías. El VENDEDOR autoriza al INTERMEDIARIO a anunciar el vehículo y a usar las fotografías y la descripción de su anuncio.
+Precio de salida acordado: {{precio_neto}}. Cualquier oferta inferior será consultada previamente. El Vendedor autoriza al Asesor a negociar y a comunicarle solo ofertas serias.
 
-5. Custodia y visitas. El vehículo seguirá en poder del VENDEDOR, que facilitará que los interesados que le indique el INTERMEDIARIO lo vean y lo prueben.
+## 5. Honorarios
 
-6. Estado y documentación. El VENDEDOR declara que la documentación está en regla, que el vehículo no tiene cargas ni embargos y que los kilómetros indicados son reales.
+Los honorarios serán asumidos por el Comprador.
 
-7. Pago y entrega. El VENDEDOR cobrará el precio acordado en el momento de la venta, antes de entregar el vehículo, las llaves y la documentación. El cambio de titularidad se hará directamente a nombre del comprador.
+## 6. Responsabilidad
 
-8. Fin del acuerdo. Si pasado el plazo no se ha vendido el vehículo, el acuerdo termina sin coste para ninguna de las partes, salvo que lo prorroguen por escrito.
+El Vendedor declara que el vehículo está libre de cargas y responde por posibles vicios ocultos.
 
-9. Protección de datos. Los datos del VENDEDOR se usarán solo para gestionar esta venta y se conservarán durante los plazos legales. Puede ejercer sus derechos escribiendo al INTERMEDIARIO.
+## 7. Penalización
 
-Y en prueba de conformidad, las dos partes firman este acuerdo de forma electrónica.`;
+Si el Vendedor incumple la exclusividad, cancela sin causa justificada o vende por su cuenta durante la vigencia, deberá abonar al Asesor una compensación de {{penalizacion}}.`;
 
 /** Campos que se pueden usar en la plantilla, con lo que significan (para la ayuda de Ajustes). */
 export const CAMPOS = [
@@ -48,6 +57,7 @@ export const CAMPOS = [
   ['vendedor_domicilio', 'Domicilio del vendedor (lo pone él al firmar)'], ['vendedor_telefono', 'Teléfono del vendedor'], ['vendedor_email', 'Correo del vendedor'],
   ['coche', 'Marca, modelo y versión'], ['matricula', 'Matrícula (si no la tienes, la pone él al firmar)'], ['bastidor', 'Número de bastidor (opcional, lo puede poner él)'],
   ['km', 'Kilómetros'], ['anio', 'Año'], ['precio_neto', 'Lo que recibe el vendedor (€)'], ['plazo_dias', 'Días de exclusividad'],
+  ['garantia_meses', 'Meses de garantía que gestionas (Ajustes)'], ['penalizacion', 'Compensación si el vendedor rompe la exclusiva (Ajustes)'],
 ];
 /** Lo que rellena el vendedor al firmar (si la plantilla lo pide): [campo, etiqueta, obligatorio]. */
 export const DEL_VENDEDOR = [
@@ -131,5 +141,7 @@ export const tokenNuevo = () => {
 export const TOKEN_VALIDO = /^[A-Za-z0-9_-]{30,64}$/;
 
 export const fechaLarga = (d = new Date()) => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' });
+/** Solo el día (dd/mm/aaaa) en hora de España: lo guardado a las 23:30 en UTC ya es el día siguiente aquí. */
+export const fechaDia = (iso) => (iso ? new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z').toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
 export const fechaHora = (iso) => (iso ? new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z').toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—');
 
