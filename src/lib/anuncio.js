@@ -231,6 +231,19 @@ function autoscout(html) {
   };
 }
 
+// Wallapop: todas las fotos del anuncio (la lista "images" del JSON embebido), no solo la de og:image, y a 1024 px
+// de ancho, el tamaño más grande que da su CDN (W1200 o más devuelve una miniatura de 320).
+function fotosWallapop(html, url) {
+  const id = (String(url).match(/-(\d{6,})(?:[/?#]|$)/) || [])[1];
+  const texto = html.replace(/\\"/g, '"').replace(/\\u002F/gi, '/');
+  for (const m of texto.matchAll(/"images":\[(.*?)\]/g)) {
+    const urls = [...new Set([...m[1].matchAll(/https:\/\/cdn\.wallapop\.com\/images\/[^"\s?\\]+/g)].map((x) => x[0]))];
+    // la lista de este anuncio: sus fotos llevan su número (…p1324025346/…); las de otros anuncios de la página, no
+    if (urls.length && (!id || urls.some((u) => u.includes(`p${id}/`)))) return fotosValidas(urls.map((u) => `${u}?pictureSize=W1024`));
+  }
+  return [];
+}
+
 // Wallapop: los datos del coche van en un JSON embebido ("carInfo"). Puede venir con las comillas escapadas.
 function wallapop(html) {
   const i = html.indexOf('carInfo');
@@ -306,7 +319,7 @@ export function extraer(html, url) {
   let especifico = null;
   try {
     if (p.nombre === 'AutoScout24') especifico = autoscout(html);
-    else if (p.nombre === 'Wallapop') especifico = wallapop(html);
+    else if (p.nombre === 'Wallapop') especifico = { ...(wallapop(html) || {}), fotos: fotosWallapop(html, url) };
     else if (p.nombre === 'coches.net') especifico = cochesnet(html) || desdeEnlaceCochesNet(url);
   } catch { especifico = null; }
   if (especifico) {
