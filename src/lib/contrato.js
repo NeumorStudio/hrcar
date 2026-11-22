@@ -33,9 +33,11 @@ Durante la vigencia del acuerdo:
 - El vehículo no podrá anunciarse ni venderse por cuenta propia.
 - Si el Vendedor encuentra comprador, la operación deberá formalizarse a través del Asesor.
 
-## 4. Precio
+## 4. Cantidad para el Vendedor
 
-Precio de salida acordado: {{precio_neto}}. Cualquier oferta inferior será consultada previamente. El Vendedor autoriza al Asesor a negociar y a comunicarle solo ofertas serias.
+El Vendedor percibirá {{precio_neto}} por la venta del vehículo, sin que se le descuenten gastos ni honorarios. Cualquier oferta que obligue a bajar esa cantidad se le consultará antes. El Vendedor autoriza al Asesor a negociar el precio de venta y a comunicarle solo ofertas serias.
+
+El Asesor asumirá a su cargo {{gastos}} en gastos de preparación, gestoría y cambio de titularidad del vehículo, sin coste para el Vendedor.
 
 ## 5. Honorarios
 
@@ -56,7 +58,8 @@ export const CAMPOS = [
   ['vendedor_nombre', 'Nombre del vendedor (lo confirma él al firmar)'], ['vendedor_dni', 'DNI/NIE del vendedor (lo pone él al firmar)'],
   ['vendedor_domicilio', 'Domicilio del vendedor (lo pone él al firmar)'], ['vendedor_telefono', 'Teléfono del vendedor'], ['vendedor_email', 'Correo del vendedor'],
   ['coche', 'Marca, modelo y versión'], ['matricula', 'Matrícula (si no la tienes, la pone él al firmar)'], ['bastidor', 'Número de bastidor (opcional, lo puede poner él)'],
-  ['km', 'Kilómetros'], ['anio', 'Año'], ['precio_neto', 'Lo que recibe el vendedor (€)'], ['plazo_dias', 'Días de exclusividad'],
+  ['km', 'Kilómetros'], ['anio', 'Año'], ['precio_neto', 'Lo que recibe el vendedor (€)'], ['plazo_dias', 'Días de exclusividad (se eligen al enviar)'],
+  ['gastos', 'Lo que inviertes tú en el coche (€; solo sale si lo marcas al enviar)'],
   ['garantia_meses', 'Meses de garantía que gestionas (Ajustes)'], ['penalizacion', 'Compensación si el vendedor rompe la exclusiva (Ajustes)'],
 ];
 /** Lo que rellena el vendedor al firmar (si la plantilla lo pide): [campo, etiqueta, obligatorio]. */
@@ -70,6 +73,39 @@ export const DEL_VENDEDOR = [
 const HUECO = '__________';
 
 export const usaCampo = (plantilla, campo) => new RegExp(`\\{\\{\\s*${campo}\\s*\\}\\}`).test(plantilla);
+/** La plantilla sin las líneas que usan ese dato (p. ej. lo que invierte el dueño, si no lo quiere enseñar). */
+export const quitarLineas = (plantilla, campo) => String(plantilla).split(/\r?\n/).filter((l) => !usaCampo(l, campo)).join('\n').replace(/\n{3,}/g, '\n\n');
+
+// El apartado 4 de antes decía «Precio de salida acordado», que se leía como el precio de venta. Los contratos
+// guardados con ese texto pasan a decir la cantidad que percibe el vendedor (y, si se marca, lo que invierte el dueño).
+const PRECIO_ANTES = /Precio de salida acordado:\s*\{\{\s*precio_neto\s*\}\}\.\s*Cualquier oferta inferior será consultada previamente\.\s*El Vendedor autoriza al Asesor a negociar y a comunicarle solo ofertas serias\./;
+const PRECIO_AHORA = 'El Vendedor percibirá {{precio_neto}} por la venta del vehículo, sin que se le descuenten gastos ni honorarios. Cualquier oferta que obligue a bajar esa cantidad se le consultará antes. El Vendedor autoriza al Asesor a negociar el precio de venta y a comunicarle solo ofertas serias.\n\nEl Asesor asumirá a su cargo {{gastos}} en gastos de preparación, gestoría y cambio de titularidad del vehículo, sin coste para el Vendedor.';
+export function alDia(plantilla) {
+  const p = String(plantilla || '');
+  if (!PRECIO_ANTES.test(p)) return p;
+  return p.replace(PRECIO_ANTES, PRECIO_AHORA).replace(/^##\s*4\.\s*Precio[ \t\r]*$/m, '## 4. Cantidad para el Vendedor');
+}
+
+// Anexo para ampliar la exclusiva de un contrato ya firmado: el contrato no se toca, se firma este anexo por enlace.
+export const PLANTILLA_PRORROGA = `# ANEXO DE PRÓRROGA DEL CONTRATO DE VENTA EN EXCLUSIVA
+
+Entre el VENDEDOR, {{vendedor_nombre}}, con DNI/NIE {{vendedor_dni}}, y el ASESOR, {{empresa_representante}}, con DNI/NIF {{empresa_nif}}, de {{empresa_nombre}}.
+
+Fecha: {{fecha}}.
+
+Vehículo: {{coche}}, matrícula {{matricula}}.
+
+## 1. Contrato que se prorroga
+
+Las partes firmaron el {{contrato_fecha}} el contrato de venta en exclusiva n.º {{contrato_numero}} de este vehículo, con la exclusiva hasta el {{fin_anterior}}.
+
+## 2. Prórroga
+
+Las partes acuerdan ampliar la exclusiva {{prorroga_dias}} días, hasta el {{fin_nuevo}} incluido.
+
+## 3. Lo demás no cambia
+
+El resto del contrato sigue igual: la cantidad para el Vendedor, los servicios, la exclusividad, la responsabilidad y la penalización.`;
 /** Texto con los huecos rellenados; lo que falta queda como «__________». */
 export function rellenar(plantilla, valores) {
   return String(plantilla).replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k) => {

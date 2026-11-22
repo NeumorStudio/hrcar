@@ -192,6 +192,24 @@ export function desdeEnlaceCochesNet(url) {
   };
 }
 
+// Al compartir un anuncio desde el móvil (Safari, la app de Wallapop o de coches.net…) se copia el enlace con texto
+// alrededor: «Mira este Seat Ibiza por 11.500 € https://www.coches.net/…». De lo que se pegue se saca el enlace bueno:
+// el primero de un portal conocido y, si no hay ninguno, el primero que haya. Entiende «www.…» sin https y quita la
+// puntuación que se queda pegada al final. Devuelve null si no hay ningún enlace.
+const DOMINIOS = /(?:^|[^\w.-])((?:[a-z0-9-]+\.)*(?:wallapop\.com|coches\.net|milanuncios\.com|autocasion\.com|mobile\.de|autoscout24\.[a-z]{2,3})\/[^\s<>"'«»“”]*)/i;
+export function sacarEnlace(texto) {
+  const t = String(texto || '').replace(/[​-‍﻿]/g, '');
+  const sueltos = t.match(/(?:https?:\/\/|www\.)[^\s<>"'«»“”]+/gi) || [];
+  if (!sueltos.length) { const m = t.match(DOMINIOS); if (m) sueltos.push(m[1]); }
+  const buenos = sueltos.map((x) => {
+    let u = x.replace(/[.,;:!?…)\]}>'"»”]+$/, '');
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    try { const v = new URL(u); return /^https?:$/.test(v.protocol) && v.hostname.includes('.') ? v.toString() : null; } catch { return null; }
+  }).filter(Boolean);
+  const conocido = buenos.find((u) => { const h = new URL(u).hostname; return Object.keys(PORTALES).some((k) => h.includes(k)); });
+  return conocido || buenos[0] || null;
+}
+
 export function portal(url) {
   let host = '';
   try { host = new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }

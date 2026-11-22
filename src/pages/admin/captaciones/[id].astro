@@ -2,9 +2,9 @@
 // Ficha de una captación: el coche, los números (lo que recibe el vendedor, a cuánto se vende y la comisión),
 // la tasación por coches parecidos, el vendedor, el contrato y el paso al inventario.
 import Admin from '../../../layouts/Admin.astro';
-import { obtenerCaptacion, ESTADOS_CAPTACION, AYUDA_ESTADO_CAPTACION, comision, ajustesContrato, faltaDelDueno } from '../../../lib/captaciones.js';
+import { obtenerCaptacion, ESTADOS_CAPTACION, AYUDA_ESTADO_CAPTACION, comision, ajustesContrato, faltaDelDueno, exclusiva } from '../../../lib/captaciones.js';
 import { telWhatsApp } from '../../../lib/crm.js';
-import { fechaHora, fechaDia } from '../../../lib/contrato.js';
+import { fechaHora, fechaDia, usaCampo, bloques } from '../../../lib/contrato.js';
 import { origenPublico } from '../../../lib/origen.js';
 import { euros, kms } from '../../../lib/formato.js';
 const db = Astro.locals.runtime.env.DB;
@@ -20,7 +20,21 @@ const proxy = (u) => `/api/admin/fotos/desde-url?url=${encodeURIComponent(u)}`;
 const wa = telWhatsApp(c.vendedor_telefono);
 const ultimo = c.contratos[0] || null;
 const pendiente = ultimo && ['Pendiente', 'Visto'].includes(ultimo.estado) ? ultimo : null;
-const firmado = c.contratos.find((k) => k.estado === 'Firmado') || null;
+// el contrato firmado (sin contar las prórrogas, que van aparte) y hasta cuándo dura la exclusiva
+const ex = exclusiva(c.contratos);
+const firmado = ex ? ex.principal : null;
+const kd = (firmado && firmado.datos) || {};
+const textoFirmado = firmado && firmado.texto_firmado ? bloques(firmado.texto_firmado) : [];
+const quedan = ex && ex.hasta ? Math.ceil((ex.hasta - Date.now()) / 86400000) : null;
+const esProrroga = (k) => k.datos?.tipo === 'prorroga';
+const otros = c.contratos.filter((k) => k !== pendiente && k !== firmado && !(ex && ex.prorrogas.includes(k)));
+// al mandar uno nuevo, salen marcados los días y la casilla del que ya se mandó
+const previo = (pendiente && !esProrroga(pendiente) && pendiente.datos) || null;
+const plazoElegido = Number(previo && previo.plazo_dias) || aj.plazo_dias;
+const gastosMarcado = previo ? !!previo.gastos : true;
+const plazos = [...new Set([15, 30, 45, 60, 90, 120, 180, aj.plazo_dias, plazoElegido])].sort((a, b) => a - b);
+const conPlazo = usaCampo(aj.plantilla, 'plazo_dias');
+const conGastos = usaCampo(aj.plantilla, 'gastos');
 const origen = origenPublico(Astro.request, Astro.locals.runtime.env);
 // lo que falte del dueño (firma, NIF…) se lo pide el panel al pulsar «Enviar», en un paso de firma
 const falta = faltaDelDueno(aj);
@@ -133,12 +147,45 @@ const objetivo = { marca: d.marca, modelo: d.modelo, version: d.version, anio: d
     {firmado && (
       <div class="contrato-firmado">
         <p><b>✓ Firmado</b> por {firmado.firmante_nombre} ({firmado.firmante_dni}) el {fechaHora(firmado.firmado)}.</p>
-        <button type="button" class="boton" data-pdf-contrato={firmado.id}>Descargar el contrato en PDF</button>
+        <dl class="datos-contrato">
+          <dt>Vendedor</dt><dd>{kd.vendedor_nombre || firmado.firmante_nombre} · DNI/NIE {kd.vendedor_dni || firmado.firmante_dni}</dd>
+          {kd.vendedor_domicilio && <><dt>Domicilio</dt><dd>{kd.vendedor_domicilio}</dd></>}
+          <dt>Coche</dt><dd>{[kd.coche, kd.matricula && `matrícula ${kd.matricula}`, kd.bastidor && `bastidor ${kd.bastidor}`].filter(Boolean).join(' · ') || '—'}</dd>
+          {kd.precio_neto && <><dt>Recibe el vendedor</dt><dd><b>{kd.precio_neto}</b></dd></>}
+          {kd.gastos && <><dt>Inviertes tú</dt><dd>{kd.gastos}</dd></>}
+          {ex.hasta && <><dt>Exclusiva</dt><dd>{ex.dias ? `${ex.dias} días` : ''}{ex.prorrogas.length ? ` + ${ex.prorrogas.length === 1 ? 'una prórroga' : `${ex.prorrogas.length} prórrogas`}` : ''}, hasta el {fecha(new Date(ex.hasta).toISOString())} <span class={quedan > 7 ? 'suave' : quedan > 0 ? 'queda-poco' : 'rojo'}>({quedan > 1 ? `quedan ${quedan} días` : quedan === 1 ? 'queda 1 día' : 'ya terminó'})</span></dd></>}
+          <dt>Enviado por</dt><dd>{CANAL[firmado.canal] || 'enlace'}{firmado.destino ? ` a ${firmado.destino}` : ''} el {fechaHora(firmado.enviado || firmado.creado)}</dd>
+          {firmado.huella && <><dt>Huella</dt><dd class="suave">{firmado.huella.slice(0, 16)}…</dd></>}
+        </dl>
+        {ex.prorrogas.length > 0 && (
+          <ul class="prorrogas">{ex.prorrogas.slice().reverse().map((p) => <li>Prórroga de {p.datos.prorroga_dias} días, hasta el {p.datos.fin_nuevo}. Firmada el {fechaHora(p.firmado)}. <button type="button" class="enlace" data-pdf-contrato={p.id}>PDF</button></li>)}</ul>
+        )}
+        <div class="botonera">
+          <button type="button" class="boton" data-pdf-contrato={firmado.id}>Descargar el contrato en PDF</button>
+        </div>
+        {textoFirmado.length > 0 && (
+          <details class="contrato-leido"><summary>Leer el contrato firmado</summary>
+            <div class="texto-contrato">
+              {textoFirmado.map((b) => b.tipo === 'titulo' ? <h3>{b.texto}</h3> : b.tipo === 'apartado' ? <h4>{b.texto}</h4> : b.tipo === 'lista' ? <ul>{b.items.map((it) => <li>{it}</li>)}</ul> : <p>{b.texto}</p>)}
+            </div>
+          </details>
+        )}
+        <details class="ampliar"><summary>Ampliar la exclusiva</summary>
+          <p class="suave">El contrato firmado no se toca: le mandas un anexo de prórroga con los días de más y lo firma con el dedo, igual que el contrato. Los días se suman desde el final de la exclusiva{ex.hasta ? ` (${fecha(new Date(ex.hasta).toISOString())})` : ''}.</p>
+          <div class="opciones-contrato">
+            <label class="campo"><span>Días de más</span><select data-prorroga-dias>{[15, 30, 45, 60, 90].map((n) => <option value={n} selected={n === 30}>{n} días</option>)}</select></label>
+          </div>
+          <div class="botonera">
+            <button type="button" class="boton" data-prorroga="whatsapp">Enviar por WhatsApp</button>
+            <button type="button" class="boton secundario" data-prorroga="correo">Enviar por correo</button>
+            <button type="button" class="boton secundario" data-prorroga="enlace">Copiar el enlace</button>
+          </div>
+        </details>
       </div>
     )}
     {pendiente && (
-      <div class="contrato-pendiente" data-enlace={`${origen}/firmar/${pendiente.token}`}>
-        <p><b>{ESTADO_K[pendiente.estado]}</b>: enviado por {CANAL[pendiente.canal] || 'enlace'} el {fechaHora(pendiente.enviado || pendiente.creado)}{pendiente.visto && `, abierto el ${fechaHora(pendiente.visto)}`}. El enlace vale hasta el {fecha(pendiente.caduca)}.</p>
+      <div class="contrato-pendiente" data-enlace={`${origen}/firmar/${pendiente.token}`} data-tipo={esProrroga(pendiente) ? 'prorroga' : undefined}>
+        <p>{esProrroga(pendiente) && <>Prórroga de {pendiente.datos.prorroga_dias} días · </>}<b>{ESTADO_K[pendiente.estado]}</b>: enviado por {CANAL[pendiente.canal] || 'enlace'} el {fechaHora(pendiente.enviado || pendiente.creado)}{pendiente.visto && `, abierto el ${fechaHora(pendiente.visto)}`}. El enlace vale hasta el {fecha(pendiente.caduca)}.</p>
         <div class="botonera">
           <button type="button" class="boton secundario pequeno" data-recordar>Recordárselo por WhatsApp</button>
           <button type="button" class="boton secundario pequeno" data-copiar-enlace>Copiar enlace</button>
@@ -149,7 +196,16 @@ const objetivo = { marca: d.marca, modelo: d.modelo, version: d.version, anio: d
     )}
     {!firmado && (
       <>
-        <p class="suave">{pendiente ? 'Si has cambiado algo (precio, vendedor…), manda uno nuevo: el anterior deja de valer.' : 'Sale relleno con los datos del coche, el precio neto y el vendedor. Él lo abre en el móvil, pone su DNI y firma con el dedo.'}</p>
+        <p class="suave">{pendiente ? 'Si has cambiado algo (precio, días, vendedor…), manda uno nuevo: el anterior deja de valer.' : 'Sale relleno con el coche, el vendedor y lo que recibe. Él lo abre en el móvil, pone su DNI y firma con el dedo.'}</p>
+        {(conPlazo || conGastos) && (
+          <div class="opciones-contrato">
+            {conPlazo && <label class="campo"><span>Días de exclusiva</span><select data-plazo>{plazos.map((n) => <option value={n} selected={n === plazoElegido}>{n} días</option>)}</select></label>}
+            {conGastos && (
+              <label class="casilla" data-fila-gastos hidden={!(c.gastos > 0)}><input type="checkbox" data-con-gastos checked={gastosMarcado} /><span>Decirle en el contrato que inviertes <b data-gastos-texto>{euros(c.gastos || 0)}</b> en prepararlo y en los papeles, sin coste para él</span></label>
+            )}
+          </div>
+        )}
+        <p class="suave nota-contrato">Él solo ve lo que recibe{conGastos ? ' (y lo que inviertes tú, si lo marcas)' : ''}. Tu precio de venta y tu comisión no salen en el contrato.</p>
         <div class="botonera">
           <button type="button" class="boton" data-enviar-contrato="whatsapp">{pendiente ? 'Mandar uno nuevo por WhatsApp' : 'Enviar por WhatsApp'}</button>
           <button type="button" class="boton secundario" data-enviar-contrato="correo">Enviar por correo</button>
@@ -157,9 +213,9 @@ const objetivo = { marca: d.marca, modelo: d.modelo, version: d.version, anio: d
         </div>
       </>
     )}
-    {c.contratos.length > 1 && (
-      <details style="margin-top:12px"><summary class="suave">Contratos anteriores ({c.contratos.length - 1})</summary>
-        <table class="tabla"><tbody>{c.contratos.slice(1).map((k) => <tr><td>n.º {k.id}</td><td>{ESTADO_K[k.estado] || k.estado}</td><td>{fechaHora(k.enviado || k.creado)}</td><td>{k.estado === 'Firmado' && <button type="button" class="enlace" data-pdf-contrato={k.id}>PDF</button>}</td></tr>)}</tbody></table>
+    {otros.length > 0 && (
+      <details style="margin-top:12px"><summary class="suave">Contratos anteriores ({otros.length})</summary>
+        <table class="tabla"><tbody>{otros.map((k) => <tr><td>{esProrroga(k) ? 'Prórroga' : 'Contrato'} n.º {k.id}</td><td>{ESTADO_K[k.estado] || k.estado}</td><td>{fechaHora(k.enviado || k.creado)}</td><td>{k.estado === 'Firmado' && <button type="button" class="enlace" data-pdf-contrato={k.id}>PDF</button>}</td></tr>)}</tbody></table>
       </details>
     )}
   </section>

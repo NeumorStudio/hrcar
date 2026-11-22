@@ -105,7 +105,7 @@ export async function POST({ request, locals }) {
     const texto = String(d.plantilla ?? '').replace(/\r\n/g, '\n').trim();
     if (d.restaurar || !texto) { await guardarAjuste(db, 'contrato_plantilla', null); return json({ ok: true }); }
     if (texto.length > 40000) return json({ ok: false, error: 'El contrato es demasiado largo (máximo 40.000 caracteres).' }, 400);
-    if (!/\{\{\s*precio_neto\s*\}\}/.test(texto) || !/\{\{\s*vendedor_dni\s*\}\}/.test(texto)) return json({ ok: false, error: 'El contrato tiene que llevar al menos {{precio_neto}} y {{vendedor_dni}}.' }, 400);
+    if (!/\{\{\s*precio_neto\s*\}\}/.test(texto) || !/\{\{\s*vendedor_dni\s*\}\}/.test(texto)) return json({ ok: false, error: 'Al contrato le falta «Lo que recibe el vendedor» o «DNI del vendedor». Ponlos con «Insertar dato».' }, 400);
     await guardarAjuste(db, 'contrato_plantilla', texto);
     return json({ ok: true });
   }

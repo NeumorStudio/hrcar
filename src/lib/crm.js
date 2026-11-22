@@ -22,7 +22,15 @@ export function coincide(texto, busqueda) {
 const POR_PAGINA = 100;
 const CONTADORES = `(SELECT COUNT(*) FROM mensajes m WHERE m.cliente_id = c.id) AS mensajes,
       (SELECT COUNT(*) FROM tareas t WHERE t.cliente_id = c.id AND t.hecha = 0) AS tareas,
-      (SELECT COUNT(*) FROM ventas v WHERE v.cliente_id = c.id) AS ventas`;
+      (SELECT COUNT(*) FROM ventas v WHERE v.cliente_id = c.id) AS ventas,
+      (SELECT m.formulario FROM mensajes m WHERE m.cliente_id = c.id ORDER BY m.id DESC LIMIT 1) AS ultimo_formulario,
+      (SELECT m.coche FROM mensajes m WHERE m.cliente_id = c.id AND m.coche <> '' AND m.formulario <> 'tasacion' ORDER BY m.id DESC LIMIT 1) AS ultimo_coche`;
+/** Lo que quiere el cliente, dicho en claro, según su último mensaje de la web (para la lista de Clientes). */
+export function queQuiere(c) {
+  if (c.ultimo_formulario === 'tasacion') return { texto: 'Quiere venderte su coche' };
+  if (c.ultimo_coche) return { texto: { reserva: 'Quiere reservar:', financiacion: 'Quiere financiar:' }[c.ultimo_formulario] || 'Le interesa:', coche: c.ultimo_coche };
+  return { financiacion: { texto: 'Pide financiación' }, encargo: { texto: 'Busca un coche a medida' }, reserva: { texto: 'Quiere reservar un coche' } }[c.ultimo_formulario] || null;
+}
 
 /** Clientes de 100 en 100, los que se movieron hace menos primero. Con `q`, busca en todos (sin tildes). */
 export async function listarClientes(db, { q = '', pagina = 1 } = {}) {

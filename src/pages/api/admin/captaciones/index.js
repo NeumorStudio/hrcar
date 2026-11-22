@@ -1,5 +1,5 @@
 // Nueva captación a partir del enlace de un anuncio (o con los datos ya leídos en la calculadora).
-import { leerAnuncio, portal, normalizarCombustible, normalizarCambio } from '../../../../lib/anuncio.js';
+import { leerAnuncio, portal, normalizarCombustible, normalizarCambio, sacarEnlace } from '../../../../lib/anuncio.js';
 import { crearCaptacion, actualizarCaptacion } from '../../../../lib/captaciones.js';
 import { marcaConocida } from '../../../../data/modelos.js';
 import { fechaDia } from '../../../../lib/contrato.js';
@@ -32,7 +32,9 @@ export async function POST({ request, locals }) {
   }
   let url = null;
   if (d.url) {
-    try { const u = new URL(String(d.url).trim()); if (!/^https?:$/.test(u.protocol)) throw new Error(); url = u.toString(); } catch { return json({ ok: false, error: 'Pega un enlace completo (empieza por https://).' }, 400); }
+    // lo pegado puede traer texto de más (al compartir desde el móvil): se queda solo el enlace
+    url = sacarEnlace(d.url);
+    if (!url) return json({ ok: false, error: 'En lo que has pegado no hay ningún enlace. Copia el enlace del anuncio (empieza por https://).' }, 400);
   }
   let datos = d.datos && typeof d.datos === 'object' ? d.datos : null;
   let aviso = null;

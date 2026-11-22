@@ -31,8 +31,8 @@ const contratoTexto = (c) => {
     {!guiaVista && <div class="botonera" style="margin-top:12px"><button type="button" class="boton" data-guia-entendido>Entendido</button></div>}
   </details>
   <div class="caja">
-    <form data-nueva-captacion class="form-tarea">
-      <label class="campo" style="flex:1;min-width:240px"><span>Pega el enlace del anuncio (coches.net, Wallapop, AutoScout24, Milanuncios…)</span><input type="url" name="url" placeholder="https://www.coches.net/…" required inputmode="url" /></label>
+    <form data-nueva-captacion class="form-tarea" novalidate>
+      <label class="campo" style="flex:1;min-width:240px"><span>Pega el enlace del anuncio (coches.net, Wallapop, AutoScout24, Milanuncios…)</span><input type="text" name="url" placeholder="https://www.coches.net/…" required inputmode="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-enlace-anuncio /></label>
       <button class="boton" type="submit">Captar este coche</button>
     </form>
     <p class="suave" style="margin:8px 0 0">Se leen los datos y las fotos del anuncio y se tasa solo. Después pones lo que quiere el vendedor y le mandas el contrato.</p>

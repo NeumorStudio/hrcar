@@ -109,6 +109,55 @@
     }).catch(function (err) { fallo(err); entendido.disabled = false; });
   });
 
+  // ------------------------------------------------------------ enlaces pegados con texto de más
+  // Al compartir un anuncio desde el móvil (Safari en el iPad, la app de Wallapop…) y darle a «Copiar», se copia el
+  // enlace con el modelo, el precio… alrededor. Aquí se deja solo el enlace (igual que hace el servidor).
+  var PORTALES_ENLACE = ['wallapop.com', 'coches.net', 'milanuncios.com', 'autocasion.com', 'mobile.de', 'autoscout24.'];
+  function sacarEnlace(texto) {
+    var t = String(texto || '').replace(/[​-‍﻿]/g, '');
+    var sueltos = t.match(/(?:https?:\/\/|www\.)[^\s<>"'«»“”]+/gi) || [];
+    if (!sueltos.length) {
+      var m = t.match(/(?:^|[^\w.-])((?:[a-z0-9-]+\.)*(?:wallapop\.com|coches\.net|milanuncios\.com|autocasion\.com|mobile\.de|autoscout24\.[a-z]{2,3})\/[^\s<>"'«»“”]*)/i);
+      if (m) sueltos = [m[1]];
+    }
+    var buenos = [];
+    sueltos.forEach(function (x) {
+      var u = x.replace(/[.,;:!?…)\]}>'"»”]+$/, '');
+      if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+      try { var v = new URL(u); if (/^https?:$/.test(v.protocol) && v.hostname.indexOf('.') > -1) buenos.push(v.toString()); } catch (e) { /* no es un enlace */ }
+    });
+    var conocido = buenos.filter(function (u) { var h = new URL(u).hostname; return PORTALES_ENLACE.some(function (k) { return h.indexOf(k) > -1; }); })[0];
+    return conocido || buenos[0] || null;
+  }
+  // deja solo el enlace en el campo; «siempre» = también si no hay espacios (al salir del campo o al enviar)
+  function limpiarCampoEnlace(input, siempre) {
+    var v = input.value.trim();
+    if (!v || (!siempre && !/\s/.test(v))) return true;
+    var u = sacarEnlace(v);
+    if (!u) return false;
+    if (u !== v) {
+      input.value = u;
+      if (/\s/.test(v)) avisar('He quitado el texto de más: me quedo solo con el enlace del anuncio', 'ok');
+    }
+    return true;
+  }
+  $$('[data-enlace-anuncio]').forEach(function (input) {
+    input.addEventListener('input', function () { limpiarCampoEnlace(input, false); });
+    input.addEventListener('paste', function () { setTimeout(function () { limpiarCampoEnlace(input, false); }, 0); });
+    input.addEventListener('blur', function () { limpiarCampoEnlace(input, true); });
+  });
+  // antes que nadie lea el formulario (también el de la calculadora, que es de admin.js), se limpia el enlace
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    var input = form && form.querySelector ? form.querySelector('[data-enlace-anuncio]') : null;
+    if (!input || !input.value.trim()) return;
+    if (!limpiarCampoEnlace(input, true)) {
+      e.preventDefault(); e.stopPropagation();
+      avisar('En lo que has pegado no hay ningún enlace. Copia el enlace del anuncio (empieza por https://).', 'error');
+      input.focus();
+    }
+  }, true);
+
   // ------------------------------------------------------------ nueva captación desde un enlace
   var nueva = $('[data-nueva-captacion]');
   if (nueva) nueva.addEventListener('submit', function (e) {
@@ -234,6 +283,17 @@
     // contrato
     var cajaK = $('[data-contrato-caja]');
     var wa = cajaK.getAttribute('data-wa') || '';
+    // lo que invierte el dueño: la casilla del contrato solo sale si hay gastos, y con la cantidad de ahora
+    var filaGastos = $('[data-fila-gastos]', cajaK);
+    if (filaGastos) ficha.elements.gastos.addEventListener('input', function () {
+      var n = num('gastos') || 0;
+      filaGastos.hidden = !(n > 0);
+      $('[data-gastos-texto]', filaGastos).textContent = miles(n) + ' €';
+    });
+    var opcionesContrato = function () {
+      var sel = $('[data-plazo]', cajaK), casilla = $('[data-con-gastos]', cajaK);
+      return { plazo_dias: sel ? Number(sel.value) : undefined, con_gastos: !!(casilla && filaGastos && !filaGastos.hidden && casilla.checked) };
+    };
     var listoParaEnviar = function () {
       var faltan = [];
       if (!ficha.elements.vendedor_nombre.value.trim()) faltan.push(ficha.elements.vendedor_nombre);
@@ -245,11 +305,12 @@
     var mostrarEnlace = function (j, canal) {
       var botones = [];
       if (canal === 'whatsapp') botones.push({ texto: 'Abrir WhatsApp', href: j.whatsapp, clase: 'boton' });
-      if (navigator.share) botones.push({ texto: 'Compartir…', cierra: false, hacer: function () { navigator.share({ title: 'Acuerdo para firmar', text: j.mensaje }).catch(function () {}); } });
+      if (navigator.share) botones.push({ texto: 'Compartir…', cierra: false, hacer: function () { navigator.share({ title: j.prorroga ? 'Ampliación para firmar' : 'Acuerdo para firmar', text: j.mensaje }).catch(function () {}); } });
       botones.push({ texto: 'Copiar el enlace', cierra: false, hacer: function (e, el) { copiar(j.enlace, el); } });
       if (canal !== 'whatsapp') botones.push({ texto: 'Abrir WhatsApp', href: j.whatsapp });
       botones.push({ texto: 'Cerrar' });
-      dialogo(canal === 'correo' ? 'Contrato enviado por correo' : 'Contrato listo para enviar',
+      var que = j.prorroga ? 'Prórroga' : 'Contrato';
+      dialogo(canal === 'correo' ? que + (j.prorroga ? ' enviada' : ' enviado') + ' por correo' : que + (j.prorroga ? ' lista' : ' listo') + ' para enviar',
         (canal === 'correo' ? '<p>Se lo hemos mandado a <b>' + esc(ficha.elements.vendedor_email.value) + '</b>. También puedes mandárselo por WhatsApp:</p>' : '<p>Este es el mensaje con su enlace para firmar:</p>') +
         '<p class="mensaje-contrato">' + esc(j.mensaje).replace(/\n/g, '<br>') + '</p>', botones, function () { location.reload(); });
     };
@@ -312,7 +373,20 @@
         b.disabled = true; b.textContent = 'Preparando…';
         (sucio ? guardar(true) : Promise.resolve()).then(pasoFirma).then(function (seguir) {
           if (!seguir) return;
-          return pedir('/api/admin/captaciones/' + id + '/contrato', 'POST', { canal: canal }).then(function (j) { mostrarEnlace(j, canal); });
+          return pedir('/api/admin/captaciones/' + id + '/contrato', 'POST', Object.assign({ canal: canal }, opcionesContrato())).then(function (j) { mostrarEnlace(j, canal); });
+        }).catch(fallo).then(function () { b.disabled = false; b.textContent = texto; });
+      });
+    });
+    // ampliar la exclusiva: anexo de prórroga que el vendedor firma por enlace (el contrato firmado no se toca)
+    $$('[data-prorroga]', cajaK).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var canal = b.getAttribute('data-prorroga');
+        var sel = $('[data-prorroga-dias]', cajaK);
+        var texto = b.textContent;
+        b.disabled = true; b.textContent = 'Preparando…';
+        (sucio ? guardar(true) : Promise.resolve()).then(pasoFirma).then(function (seguir) {
+          if (!seguir) return;
+          return pedir('/api/admin/captaciones/' + id + '/contrato', 'POST', { canal: canal, prorroga: true, dias: Number(sel.value) }).then(function (j) { mostrarEnlace(j, canal); });
         }).catch(fallo).then(function () { b.disabled = false; b.textContent = texto; });
       });
     });
@@ -322,7 +396,8 @@
       $('[data-copiar-enlace]', pendiente).addEventListener('click', function () { copiar(enlace, this); });
       $('[data-recordar]', pendiente).addEventListener('click', function () {
         var nombre = (ficha.elements.vendedor_nombre.value.trim().split(' ')[0]) || '';
-        var msg = 'Hola' + (nombre ? ' ' + nombre : '') + ', te recuerdo el acuerdo para la venta de tu coche. Cuando puedas, léelo y fírmalo desde aquí:\n' + enlace;
+        var cual = pendiente.getAttribute('data-tipo') === 'prorroga' ? 'la ampliación del acuerdo' : 'el acuerdo';
+        var msg = 'Hola' + (nombre ? ' ' + nombre : '') + ', te recuerdo ' + cual + ' para la venta de tu coche. Cuando puedas, léelo y fírmalo desde aquí:\n' + enlace;
         window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
       });
       $('[data-anular]', pendiente).addEventListener('click', function () {
@@ -365,7 +440,7 @@
       var texto = b.textContent;
       b.disabled = true; b.textContent = 'Preparando el PDF…';
       pedir('/api/admin/contratos/' + b.getAttribute('data-pdf-contrato'), 'GET').then(function (j) {
-        return cargarPdf().then(function (pdf) { return pdf.descargar(j.pdf, 'contrato-' + j.pdf.id + '-' + String(j.pdf.firmante.nombre || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.pdf'); });
+        return cargarPdf().then(function (pdf) { return pdf.descargar(j.pdf, (j.pdf.tipo === 'prorroga' ? 'prorroga-' : 'contrato-') + j.pdf.id + '-' + String(j.pdf.firmante.nombre || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.pdf'); });
       }).catch(fallo).then(function () { b.disabled = false; b.textContent = texto; });
     });
   });

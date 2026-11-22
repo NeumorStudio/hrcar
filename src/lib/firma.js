@@ -44,7 +44,7 @@ export async function firmar(env, k, d, request) {
     } else if (campo === 'matricula') {
       if (!v && !obligatorio) continue;
       const m = matriculaValida(v);
-      if (!m) return { error: 'Revisa la matrícula (por ejemplo, 1234 ABC).', campo };
+      if (!m) return { error: 'Revisa la matrícula (por ejemplo, 1234 BCD; las de ahora no llevan vocales).', campo };
       valores[campo] = m;
     } else if (campo === 'bastidor') {
       if (v && !/^[A-HJ-NPR-Z0-9]{11,17}$/i.test(v.replace(/\s/g, ''))) return { error: 'El número de bastidor tiene 17 letras y números.', campo };
@@ -78,7 +78,8 @@ export async function firmar(env, k, d, request) {
 export async function avisarFirma(env, k, valores, origen) {
   const cap = await obtenerCaptacion(env.DB, k.captacion_id).catch(() => null);
   const coche = valores.coche || cap?.titulo || 'el coche';
-  const tareas = [avisarTodos(env.DB, { titulo: 'Contrato firmado', cuerpo: `${valores.vendedor_nombre} ha firmado el acuerdo de ${coche}`.slice(0, 140), url: `/admin/captaciones/${k.captacion_id}`, tag: `contrato-${k.id}` }).catch(() => {})];
+  const pr = valores.tipo === 'prorroga';
+  const tareas = [avisarTodos(env.DB, { titulo: pr ? 'Prórroga firmada' : 'Contrato firmado', cuerpo: `${valores.vendedor_nombre} ha firmado ${pr ? 'la prórroga' : 'el acuerdo'} de ${coche}`.slice(0, 140), url: `/admin/captaciones/${k.captacion_id}`, tag: `contrato-${k.id}` }).catch(() => {})];
   if (env.RESEND_API_KEY) {
     const remitente = env.CORREO_REMITENTE || MARCA.remitente;
     const juan = (await ajuste(env.DB, 'correo_avisos').catch(() => null)) || env.CORREO_DESTINO || MARCA.correo;
@@ -88,10 +89,10 @@ export async function avisarFirma(env, k, valores, origen) {
       body: JSON.stringify({ from: remitente, to: [para], subject: asunto, html, ...extra }),
     }).then((r) => { if (!r.ok) console.error('Resend', r.status); }).catch((e) => console.error('Resend', e?.message));
     const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-    tareas.push(enviar(juan, `Contrato firmado: ${coche}`.slice(0, 150), `<p><b>${esc(valores.vendedor_nombre)}</b> (DNI/NIE ${esc(valores.vendedor_dni)}) ha firmado el acuerdo de <b>${esc(coche)}</b>.</p><p><a href="${origen}/admin/captaciones/${k.captacion_id}">Ver la captación y descargar el contrato</a></p>`));
+    tareas.push(enviar(juan, `${pr ? 'Prórroga firmada' : 'Contrato firmado'}: ${coche}`.slice(0, 150), `<p><b>${esc(valores.vendedor_nombre)}</b> (DNI/NIE ${esc(valores.vendedor_dni)}) ha firmado ${pr ? `la prórroga de la exclusiva (hasta el ${esc(valores.fin_nuevo)})` : 'el acuerdo'} de <b>${esc(coche)}</b>.</p><p><a href="${origen}/admin/captaciones/${k.captacion_id}">Ver la captación y descargar el contrato</a></p>`));
     const correo = cap?.vendedor_email;
     if (correo) {
-      tareas.push(enviar(correo, `Tu copia del acuerdo con ${valores.empresa_nombre || MARCA.nombre}`.slice(0, 150), `<p>Hola, ${esc(valores.vendedor_nombre)}:</p><p>Gracias por firmar el acuerdo para la venta de tu <b>${esc(coche)}</b>.</p><p>Puedes descargar tu copia en PDF cuando quieras desde este enlace:<br><a href="${origen}/firmar/${k.token}">${origen}/firmar/${k.token}</a></p><p>Un saludo,<br>${esc(valores.empresa_representante || valores.empresa_nombre || MARCA.nombre)}</p>`, { reply_to: juan }));
+      tareas.push(enviar(correo, `Tu copia del acuerdo con ${valores.empresa_nombre || MARCA.nombre}`.slice(0, 150), `<p>Hola, ${esc(valores.vendedor_nombre)}:</p><p>Gracias por firmar ${pr ? 'la prórroga del acuerdo' : 'el acuerdo'} para la venta de tu <b>${esc(coche)}</b>.</p><p>Puedes descargar tu copia en PDF cuando quieras desde este enlace:<br><a href="${origen}/firmar/${k.token}">${origen}/firmar/${k.token}</a></p><p>Un saludo,<br>${esc(valores.empresa_representante || valores.empresa_nombre || MARCA.nombre)}</p>`, { reply_to: juan }));
     }
   }
   await Promise.all(tareas);
@@ -101,9 +102,12 @@ export async function avisarFirma(env, k, valores, origen) {
 export async function datosPdf(env, k) {
   const aj = await ajustesContrato(env.DB);
   const v = k.datos || {};
+  const pr = v.tipo === 'prorroga';
   const canal = { whatsapp: 'WhatsApp', correo: 'correo electrónico', enlace: 'enlace copiado' }[k.canal] || k.canal || '—';
   return {
     id: k.id,
+    tipo: v.tipo || 'contrato',
+    pie: pr ? `Prórroga n.º ${k.id} del contrato n.º ${v.contrato_base}` : null,
     texto: k.texto_firmado,
     empresa: { nombre: v.empresa_nombre || aj.empresa_nombre, representante: v.empresa_representante || aj.empresa_representante },
     firmante: { nombre: k.firmante_nombre, dni: k.firmante_dni },
@@ -111,7 +115,7 @@ export async function datosPdf(env, k) {
     firmaVendedor: k.firma_vendedor,
     huella: k.huella,
     registro: [
-      ['Contrato', `n.º ${k.id}`],
+      pr ? ['Documento', `Anexo de prórroga n.º ${k.id} del contrato n.º ${v.contrato_base}`] : ['Contrato', `n.º ${k.id}`],
       ['Firmado por', `${k.firmante_nombre} · DNI/NIE ${k.firmante_dni}`],
       ['Fecha y hora de la firma (hora de España)', fechaHora(k.firmado)],
       ['Enlace enviado por', `${canal}${k.destino ? ` a ${k.destino}` : ''} el ${fechaHora(k.enviado || k.creado)}`],

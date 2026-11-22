@@ -15,6 +15,8 @@ const antes = Number(q.get('antes')) || null;
 const [{ mensajes, hayMas }, nuevos] = await Promise.all([listarMensajes(env.DB, { antes, nuevos: soloNuevos }), contarMensajesNuevos(env.DB)]);
 const correoListo = !!env.RESEND_API_KEY;
 const NOMBRES = { contacto: 'Contacto', encargo: 'Encargo a medida', financiacion: 'Financiación', tasacion: 'Tasación', reserva: 'Pre-reserva', interes: 'Interés por un coche' };
+// lo que quiere la persona, dicho en claro (la etiqueta de cada tarjeta; NOMBRES sigue en el asunto del correo)
+const QUE = { contacto: 'Te hace una pregunta', encargo: 'Busca un coche a medida', financiacion: 'Pide financiación', tasacion: 'Quiere venderte su coche', reserva: 'Quiere reservar', interes: 'Le interesa' };
 const fecha = (f) => new Date(f.replace(' ', 'T') + 'Z').toLocaleString('es-ES', { timeZone: 'Europe/Madrid', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 const tel = (t) => (t || '').replace(/[^\d+]/g, '');
 const OMITIR = new Set(['nombre', 'name', 'contactName', 'email', 'contactEmail', 'telefono', 'phone', 'contactPhone', 'coche', 'acepto', 'consentimiento_financiera']);
@@ -27,7 +29,7 @@ const base = soloNuevos ? '/admin/mensajes?nuevos=1' : '/admin/mensajes';
 const siguiente = hayMas && mensajes.length ? `${base}${soloNuevos ? '&' : '?'}antes=${mensajes[mensajes.length - 1].id}` : null;
 ---
 <Admin titulo="Mensajes" seccion="mensajes">
-  <div class="fila-titulo"><div><h1>Mensajes</h1><p class="suave">Todo lo que llega desde los formularios de la web.{correoListo ? ' También te llega por correo.' : <> Para enterarte al momento, activa los avisos en el móvil en <a href="/admin/ajustes">Ajustes</a>.</>}</p></div>
+  <div class="fila-titulo"><div><h1>Mensajes</h1><p class="suave">Lo que te escriben desde la web: quien pregunta por un coche, pide financiación, lo quiere reservar o te quiere vender el suyo. Cada persona se guarda sola en <a href="/admin/clientes">Clientes</a>.{correoListo ? ' También te llega por correo.' : <> Para enterarte al momento, activa los avisos en el móvil en <a href="/admin/ajustes">Ajustes</a>.</>}</p></div>
     {nuevos > 0 && <button type="button" class="boton secundario" data-api-boton="/api/admin/mensajes/leidos" data-aviso="Todos marcados como leídos" data-recargar>Marcar todos como leídos</button>}
   </div>
   {recuperados > 0 && <div class="caja aviso-caja"><b>{recuperados} {recuperados === 1 ? 'mensaje recuperado' : 'mensajes recuperados'}</b>: llegaron mientras la web tenía un problema y ya están aquí.</div>}
@@ -43,7 +45,7 @@ const siguiente = hayMas && mensajes.length ? `${base}${soloNuevos ? '&' : '?'}a
     return (
       <article class={`mensaje ${m.leido ? '' : 'nuevo'}`} data-mensaje={m.id}>
         <div class="cabecera-msg">
-          <div><span class="tipo">{NOMBRES[m.formulario] || m.asunto}</span>{m.coche && <span> · {m.coche}</span>}</div>
+          <div><span class="tipo">{QUE[m.formulario] || m.asunto}</span>{m.coche && <span class="coche-msg"> {QUE[m.formulario] ? '' : '· '}{m.coche}</span>}</div>
           <span class="fecha">{fecha(m.fecha)}{m.enviado || !correoListo ? '' : ' · sin correo'}</span>
         </div>
         <div class="contacto">

@@ -8,7 +8,7 @@ import { COSTES_POR_DEFECTO } from '../../lib/importacion.js';
 import { usoFotos } from '../../lib/fotos.js';
 import { vendidosConFotos } from '../../lib/datos.js';
 import { ajustesContrato } from '../../lib/captaciones.js';
-import { CAMPOS } from '../../lib/contrato.js';
+import { PLANTILLA_SERIE } from '../../lib/contrato.js';
 const env = Astro.locals.runtime.env;
 const costes = { ...COSTES_POR_DEFECTO, ...JSON.parse((await ajuste(env.DB, 'costes')) || '{}') };
 const correo = (await ajuste(env.DB, 'correo_avisos')) || env.CORREO_DESTINO || NEGOCIO.email;
@@ -20,6 +20,9 @@ const [enlacePendiente, ocultos] = await Promise.all([enlaceJuanPendiente(env.DB
 const fechaCorta = (ms) => new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' });
 const [uso, liberables] = await Promise.all([usoFotos(env.DB).catch(() => null), vendidosConFotos(env.DB, 180).catch(() => [])]);
 const contrato = await ajustesContrato(env.DB);
+const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
+// datos para el editor del contrato, dentro de un <script type="application/json">: sin «<» para que nadie pueda cerrar la etiqueta
+const enScript = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
 const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
 ---
 <Admin titulo="Ajustes" seccion="ajustes">
@@ -68,19 +71,95 @@ const mb = (b) => `${Math.round(b / 1e6).toLocaleString('es-ES')} MB`;
     </div>
 
     <h3 style="margin-top:22px">Texto del contrato</h3>
-    {!contrato.plantilla_editada && <p class="suave">Es el contrato de serie (venta en exclusiva). Los nombres, el NIF, los precios, la garantía y la compensación salen solos de tus datos de arriba y de cada captación. Si quieres cambiar algo más, edita el texto y guarda: los huecos van entre llaves, por ejemplo <code>{'{{vendedor_dni}}'}</code>.</p>}
-    <form data-api="/api/admin/ajustes" data-aviso="Contrato guardado" data-recargar>
-      <input type="hidden" name="accion" value="plantilla" />
-      <label class="campo"><span>Texto <span class="nota">(una línea en blanco entre párrafos; «# » delante para el título y «## » para un apartado)</span></span><textarea name="plantilla" rows="18" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.85rem">{contrato.plantilla}</textarea></label>
-      <details style="margin-bottom:12px"><summary class="suave">Huecos que puedes usar</summary>
-        <table class="tabla"><tbody>{CAMPOS.map(([k, v]) => <tr><td><code>{`{{${k}}}`}</code></td><td>{v}</td></tr>)}</tbody></table>
-      </details>
-      <div class="botonera">
-        <button class="boton" type="submit">Guardar el contrato</button>
-        {contrato.plantilla_editada && <button class="boton secundario" type="button" data-api-boton="/api/admin/ajustes" data-cuerpo='{"accion":"plantilla","restaurar":true}' data-recargar data-confirmar="¿Volver al contrato de serie? Se pierden los cambios que has hecho en el texto.">Volver al contrato de serie</button>}
+    <p class="suave">{contrato.plantilla_editada ? 'Es tu contrato.' : 'Es el contrato de serie (venta en exclusiva).'} Los nombres, el NIF, los precios, la garantía y la compensación salen solos de tus datos de arriba y de cada captación. Puedes cambiarlo de dos formas: subiendo tu contrato en PDF o cambiando el texto aquí mismo.</p>
+    <link rel="stylesheet" href={`/admin/editor-contrato.css?v=${VERSION}`} />
+    <div data-editor-contrato>
+      <div class="ec-pestanas" role="tablist" aria-label="Cómo cambiar el contrato">
+        <button type="button" role="tab" id="ec-tab-pdf" aria-controls="ec-panel-pdf" aria-selected="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>
+          Subir mi contrato (PDF)
+        </button>
+        <button type="button" role="tab" id="ec-tab-texto" aria-controls="ec-panel-texto" aria-selected="false" tabindex="-1">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Cambiar el texto aquí
+        </button>
       </div>
-      <p class="suave" style="margin-top:8px">Los contratos ya enviados no cambian: cada uno guarda el texto con el que se mandó.</p>
-    </form>
+
+      <div role="tabpanel" id="ec-panel-pdf" aria-labelledby="ec-tab-pdf">
+        <div id="ec-paso-subir">
+          <label class="ec-zona" id="ec-zona" for="ec-archivo">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+            <b>Arrastra aquí tu contrato en PDF</b>
+            <span>o pulsa para elegirlo</span>
+          </label>
+          <input type="file" id="ec-archivo" accept="application/pdf,.pdf" hidden />
+          <p class="ec-pista">¿Lo tienes en Word? Ábrelo y haz Archivo → Guardar como → PDF. El PDF no sale de tu ordenador: se lee aquí mismo y solo se guarda el texto.</p>
+        </div>
+        <div id="ec-leyendo" class="ec-cargando" hidden><span class="ec-rueda" aria-hidden="true"></span><span>Leyendo el contrato…</span></div>
+        <div id="ec-error-pdf" class="ec-nota ec-rojo" role="alert" hidden></div>
+
+        <div id="ec-paso-revisar" hidden>
+          <div class="ec-resumen" id="ec-resumen"></div>
+          <ol class="ec-huecos" id="ec-lista-huecos"></ol>
+          <div class="ec-acciones">
+            <button class="boton" id="ec-pasar" type="button">Pasar al editor</button>
+            <button class="boton secundario" id="ec-otro" type="button">Subir otro</button>
+            <span class="ec-estado" id="ec-faltan"></span>
+          </div>
+        </div>
+      </div>
+
+      <div role="tabpanel" id="ec-panel-texto" aria-labelledby="ec-tab-texto" hidden>
+        <div class="ec-nota ec-azul ec-banner" id="ec-banner" hidden>
+          <span id="ec-banner-texto"></span>
+          <button class="ec-enlace" id="ec-deshacer-import" type="button">Volver al que tenía</button>
+        </div>
+
+        <div class="ec-modo" role="group" aria-label="Modo">
+          <button type="button" id="ec-modo-editar" aria-pressed="true">Editar</button>
+          <button type="button" id="ec-modo-ver" aria-pressed="false">Ver con un ejemplo</button>
+        </div>
+
+        <div id="ec-zona-editar">
+          <div class="ec-herramientas" role="toolbar" aria-label="Formato">
+            <button type="button" data-cmd="h2" title="Convierte la línea en un título de apartado"><b aria-hidden="true">T</b> Apartado</button>
+            <button type="button" data-cmd="p" title="Convierte la línea en texto normal">¶ Texto</button>
+            <button type="button" data-cmd="lista" title="Pone o quita una lista con puntos">• Lista</button>
+            <button type="button" class="ec-insertar" id="ec-insertar" aria-haspopup="menu">＋ Insertar dato</button>
+            <span class="ec-separa"></span>
+            <button type="button" data-cmd="deshacer" title="Deshacer el último cambio">↶ Deshacer</button>
+          </div>
+          <div id="ec-editor" class="ec-hoja" contenteditable="true" spellcheck="true" lang="es" role="textbox" aria-multiline="true" aria-label="Texto del contrato"></div>
+          <p class="ec-ayuda">Escribe como en Word. Lo que cambia en cada coche, como el DNI o la matrícula, se pone con «Insertar dato». Toca un dato azul para cambiarlo o quitarlo.</p>
+        </div>
+
+        <div id="ec-zona-ver" hidden>
+          <p class="ec-aviso-ejemplo">El vendedor y el coche son inventados, para ver cómo queda. Al enviar el contrato se ponen los de verdad.</p>
+          <div id="ec-vista" class="ec-hoja" aria-live="polite"></div>
+        </div>
+
+        <div class="ec-comprobacion" id="ec-comprobacion" aria-live="polite"></div>
+
+        <div class="ec-acciones">
+          <button class="boton" id="ec-guardar" type="button">Guardar el contrato</button>
+          {contrato.plantilla_editada && <button class="boton secundario" id="ec-serie" type="button">Volver al contrato de serie</button>}
+          <span class="ec-estado" id="ec-estado"></span>
+        </div>
+        {contrato.plantilla_editada && (
+          <div class="ec-confirmar" id="ec-confirmar" hidden>
+            <p>Se borra lo que has cambiado y vuelve el contrato con el que empezaste. ¿Seguro?</p>
+            <button class="boton ec-rojo-boton" id="ec-si-serie" type="button">Sí, volver</button>
+            <button class="boton secundario" id="ec-no-serie" type="button">Cancelar</button>
+          </div>
+        )}
+      </div>
+    </div>
+    <script is:inline type="application/json" data-ec-datos set:html={enScript({
+      plantilla: contrato.plantilla, editada: !!contrato.plantilla_editada, serie: PLANTILLA_SERIE,
+      empresa: { empresa_nombre: contrato.empresa_nombre, empresa_nif: contrato.empresa_nif, empresa_domicilio: contrato.empresa_domicilio, empresa_representante: contrato.empresa_representante, ciudad: contrato.ciudad, plazo_dias: String(contrato.plazo_dias ?? ''), garantia_meses: String(contrato.garantia_meses ?? ''), penalizacion: contrato.penalizacion },
+    })} />
+    <script is:inline src={`/admin/editor-contrato.js?v=${VERSION}`} defer></script>
+    <p class="suave" style="margin-top:12px">Los contratos ya enviados no cambian: cada uno guarda el texto con el que se mandó.</p>
   </div>
 
   <div class="caja">
