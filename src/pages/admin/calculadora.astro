@@ -11,8 +11,8 @@ const guardados = await listarCalculos(db);
 <Admin titulo="Calculadora de importación" seccion="calculadora">
   <div class="fila-titulo"><div><h1>Calculadora</h1><p class="suave">Pega el anuncio de un coche y mira cuánto te cuesta puesto en España y qué margen te deja.</p></div></div>
   <div class="caja">
-    <form data-importar-anuncio class="form-tarea">
-      <label class="campo" style="flex:1;min-width:240px"><span>Enlace del anuncio (Wallapop, coches.net, AutoScout24…; mobile.de no deja leerlos)</span><input type="url" name="url" placeholder="https://…" /></label>
+    <form data-importar-anuncio class="form-tarea" novalidate>
+      <label class="campo" style="flex:1;min-width:240px"><span>Enlace del anuncio (Wallapop, coches.net, AutoScout24…; mobile.de no deja leerlos)</span><input type="text" name="url" placeholder="https://…" inputmode="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-enlace-anuncio /></label>
       <button class="boton secundario" type="submit">Leer anuncio</button>
     </form>
     <p class="suave" data-importar-aviso hidden></p>

@@ -69,15 +69,25 @@ async function catalogoCochesNet(env) {
   return catalogo;
 }
 
-/** Números de marca y modelo en coches.net para un coche escrito como en el panel («Mercedes-Benz», «Clase A»). */
+/**
+ * Números de marca y modelo en coches.net para un coche escrito como en el panel («Mercedes-Benz», «Clase A»).
+ * Si en el modelo va también la versión («Golf 2.0 TDI Advance»), se queda con las primeras palabras que son un modelo
+ * de su catálogo («Golf»). En `modelo` devuelve esas palabras tal como están escritas, para buscar en otros portales.
+ */
 export function idsCochesNet(catalogo, marca, modelo) {
   const pm = plano(marca);
   const mk = catalogo.find((m) => plano(m[1]) === pm) || catalogo.find((m) => pm && (plano(m[1]).startsWith(pm) || pm.startsWith(plano(m[1]))));
   if (!mk) return null;
-  const pmod = plano(modelo).replace(/^clase/, '');
   const quitarClase = (t) => plano(t).replace(/^clase/, '');
-  const md = mk[2].find((x) => quitarClase(x[1]) === pmod) || mk[2].find((x) => pmod && quitarClase(x[1]).startsWith(pmod));
-  return md ? { makeId: mk[0], modelId: md[0] } : null;
+  const palabras = String(modelo || '').trim().split(/\s+/);
+  for (let n = palabras.length; n >= 1; n--) {
+    const p = quitarClase(palabras.slice(0, n).join(' '));
+    const md = p && mk[2].find((x) => quitarClase(x[1]) === p);
+    if (md) return { makeId: mk[0], modelId: md[0], modelo: palabras.slice(0, n).join(' ') };
+  }
+  const pmod = quitarClase(modelo);
+  const md = pmod && mk[2].find((x) => quitarClase(x[1]).startsWith(pmod));
+  return md ? { makeId: mk[0], modelId: md[0], modelo: String(modelo).trim() } : null;
 }
 
 async function cochesnet(o, env) {
@@ -117,7 +127,14 @@ async function cochesnet(o, env) {
 
 // ------------------------------------------------------------------ AutoScout24 (anuncios de España)
 const FUEL_AS = { gasolina: 'B', diesel: 'D', electrico: 'E' };
-async function autoscout(o) {
+async function autoscout(o, env) {
+  // «Golf 2.0 TDI Advance» se busca como «Golf», el modelo que reconoce coches.net, si su catálogo ya está guardado. Si
+  // no lo está (la primera tasación, o cada 30 días), se prueba el texto entero, con dos palabras y con una, hasta que
+  // AutoScout24 tenga esa página y salgan coches del mismo modelo
+  const guardado = await catalogoGuardado(env);
+  const reconocido = guardado && idsCochesNet(guardado, o.marca, o.modelo)?.modelo;
+  const palabras = String(o.modelo || '').trim().split(/\s+/);
+  const candidatos = reconocido ? [reconocido] : [...new Set([palabras.join(' '), palabras.slice(0, 2).join(' '), palabras[0]])];
   const r = rangos(o);
   const q = new URLSearchParams({ atype: 'C', cy: 'E', ustate: 'N,U', sort: 'standard', desc: '0' });
   if (r.anioDesde) { q.set('fregfrom', r.anioDesde); q.set('fregto', r.anioHasta); }
@@ -126,38 +143,54 @@ async function autoscout(o) {
   if (f) q.set('fuel', f);
   if (o.cambio === 'Automático') q.set('gear', 'A');
   if (o.cambio === 'Manual') q.set('gear', 'M');
-  const busqueda = `https://www.autoscout24.es/lst/${slug(o.marca)}/${slug(o.modelo)}?${q.toString()}`;
-  const html = await traer(busqueda);
-  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-  if (!m) throw new Error('ha cambiado su página de resultados');
-  let d;
-  try { d = JSON.parse(m[1]); } catch { throw new Error('ha cambiado su página de resultados'); }
-  const pp = d?.props?.pageProps || {};
-  const sinPrefijo = (t) => plano(t).replace(/^(serie|clase)/, '');
-  const modelo = sinPrefijo(o.modelo);
-  const lista = (pp.listings || []).filter((x) => {
-    // si el modelo no existe en su buscador, sale la marca entera: se quedan solo los del mismo modelo
-    const v = x.vehicle || {};
-    if (v.modelGroup) return sinPrefijo(v.modelGroup) === modelo || sinPrefijo(v.model) === modelo;
-    const m = sinPrefijo(v.model);
-    return m === modelo || (modelo.length >= 2 && m.startsWith(modelo));
-  }).map((x) => {
-    const v = x.vehicle || {};
-    const t = x.tracking || {};
-    const potencia = (x.vehicleDetails || []).map((e) => e?.data).find((e) => /CV\)/.test(e || ''));
-    return {
-      fuente: 'AutoScout24',
-      titulo: [v.make, v.model, v.modelVersionInput].filter(Boolean).join(' ').slice(0, 120),
-      precio: num(x.price?.priceRaw ?? t.price), km: t.mileage != null ? Math.round(Number(t.mileage)) : num(v.mileageInKm),
-      anio: Number(String(t.firstRegistration || '').slice(-4)) || null,
-      cv: potencia ? num((potencia.match(/\((\d+)\s*CV\)/) || [])[1]) : null,
-      combustible: v.fuel || null, profesional: x.seller?.type ? x.seller.type !== 'PrivateSeller' : null,
-      provincia: x.location?.city || null,
-      url: typeof x.url === 'string' && x.url.startsWith('/') ? `https://www.autoscout24.es${x.url}` : null,
-      id: x.id ? `as-${x.id}` : null,
-    };
-  });
-  return { comparables: lista, busqueda, total: pp.numberOfResults ?? lista.length };
+  // sus grupos van en inglés: «A-Class», «1 Series»
+  const sinPrefijo = (t) => plano(t).replace(/^(serie|clase)/, '').replace(/(class|series)$/, '');
+  // Mercedes en AutoScout24: «Clase A» es a-class y «Clase GLA», gla
+  const slugModelo = (t) => slug(t).replace(/^clase-([a-z])$/, '$1-class').replace(/^clase-([a-z]{2,})$/, '$1');
+  let vacio = null;
+  for (const [i, modeloBase] of candidatos.entries()) {
+    const ultimo = i === candidatos.length - 1;
+    const busqueda = `https://www.autoscout24.es/lst/${slug(o.marca)}/${slugModelo(modeloBase)}?${q.toString()}`;
+    let html;
+    try {
+      html = await traer(busqueda);
+    } catch (e) {
+      if (ultimo && vacio) return vacio;
+      if (ultimo || !/ 404$/.test(e.message)) throw e;
+      continue;
+    }
+    const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (!m) throw new Error('ha cambiado su página de resultados');
+    let d;
+    try { d = JSON.parse(m[1]); } catch { throw new Error('ha cambiado su página de resultados'); }
+    const pp = d?.props?.pageProps || {};
+    const modelo = sinPrefijo(modeloBase);
+    const lista = (pp.listings || []).filter((x) => {
+      // si el modelo no existe en su buscador, sale la marca entera: se quedan solo los del mismo modelo
+      const v = x.vehicle || {};
+      if (v.modelGroup) return sinPrefijo(v.modelGroup) === modelo || sinPrefijo(v.model) === modelo;
+      const m = sinPrefijo(v.model);
+      return m === modelo || (modelo.length >= 2 && m.startsWith(modelo));
+    }).map((x) => {
+      const v = x.vehicle || {};
+      const t = x.tracking || {};
+      const potencia = (x.vehicleDetails || []).map((e) => e?.data).find((e) => /CV\)/.test(e || ''));
+      return {
+        fuente: 'AutoScout24',
+        titulo: [v.make, v.model, v.modelVersionInput].filter(Boolean).join(' ').slice(0, 120),
+        precio: num(x.price?.priceRaw ?? t.price), km: t.mileage != null ? Math.round(Number(t.mileage)) : num(v.mileageInKm),
+        anio: Number(String(t.firstRegistration || '').slice(-4)) || null,
+        cv: potencia ? num((potencia.match(/\((\d+)\s*CV\)/) || [])[1]) : null,
+        combustible: v.fuel || null, profesional: x.seller?.type ? x.seller.type !== 'PrivateSeller' : null,
+        provincia: x.location?.city || null,
+        url: typeof x.url === 'string' && x.url.startsWith('/') ? `https://www.autoscout24.es${x.url}` : null,
+        id: x.id ? `as-${x.id}` : null,
+      };
+    });
+    const resultado = { comparables: lista, busqueda, total: pp.numberOfResults ?? lista.length };
+    if (lista.length || ultimo) return resultado;
+    vacio = vacio || resultado;
+  }
 }
 
 /** Anuncios parecidos de un portal: { comparables, busqueda, total } o lanza un error con el motivo en castellano. */
@@ -165,7 +198,7 @@ export async function buscarComparables(fuente, o, env) {
   if (!o?.marca || !o?.modelo) throw new Error('Faltan la marca y el modelo para buscar coches parecidos.');
   try {
     if (fuente === 'cochesnet') return await cochesnet(o, env);
-    if (fuente === 'autoscout') return await autoscout(o);
+    if (fuente === 'autoscout') return await autoscout(o, env);
   } catch (e) {
     throw new Error(`${NOMBRE_FUENTE[fuente]}: ${e?.name === 'TimeoutError' ? 'no ha contestado a tiempo' : e?.message || 'no ha respondido'}`);
   }

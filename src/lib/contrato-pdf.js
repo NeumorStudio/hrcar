@@ -53,7 +53,7 @@ export async function pdfContrato(c) {
     pagina = doc.addPage([W, H]);
     numero++;
     y = H - M;
-    pagina.drawText(paraPdf(`Contrato n.º ${c.id} · Huella SHA-256 ${c.huella.slice(0, 16)}… · Página ${numero}`), { x: M, y: 30, size: 7.5, font: normal, color: gris });
+    pagina.drawText(paraPdf(`${c.pie || `Contrato n.º ${c.id}`} · Huella SHA-256 ${c.huella.slice(0, 16)}… · Página ${numero}`), { x: M, y: 30, size: 7.5, font: normal, color: gris });
   };
   const sitio = (alto) => { if (!pagina || y - alto < M) nueva(); };
   const escribir = (texto, { fuente = normal, tam = 10.5, interlinea = 14.5, antes = 0, despues = 8, centrado = false, color } = {}) => {

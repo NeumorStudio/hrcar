@@ -1,7 +1,7 @@
 ---
 // Clientes de 100 en 100 (los que se movieron hace menos, primero). El buscador busca en todos, sin importar tildes.
 import Admin from '../../../layouts/Admin.astro';
-import { listarClientes, llanoBusqueda } from '../../../lib/crm.js';
+import { listarClientes, llanoBusqueda, queQuiere } from '../../../lib/crm.js';
 const q = Astro.url.searchParams;
 const busqueda = (q.get('q') || '').trim().slice(0, 80);
 const pagina = Math.max(1, Math.floor(Number(q.get('pagina'))) || 1);
@@ -9,7 +9,7 @@ const { clientes, total, paginas } = await listarClientes(Astro.locals.runtime.e
 const enlace = (n) => `/admin/clientes${n > 1 ? `?pagina=${n}` : ''}`;
 ---
 <Admin titulo="Clientes" seccion="clientes">
-  <div class="fila-titulo"><div><h1>Clientes</h1><p class="suave">Se crean solos con cada mensaje de la web. También puedes añadirlos a mano.</p></div><a class="boton" href="/admin/clientes/nuevo">+ Nuevo cliente</a></div>
+  <div class="fila-titulo"><div><h1>Clientes</h1><p class="suave">Cada persona que te escribe desde la web se apunta aquí sola, con lo que busca, sus mensajes, tareas y compras juntos. A quien te llame o venga en persona, añádelo a mano.</p></div><a class="boton" href="/admin/clientes/nuevo">+ Nuevo cliente</a></div>
   <form class="barra" method="get" action="/admin/clientes">
     <input type="search" name="q" value={busqueda} placeholder="Buscar por nombre, teléfono o email…" data-buscar-lista aria-label="Buscar" />
     <button class="boton secundario" type="submit">Buscar</button>
@@ -20,7 +20,7 @@ const enlace = (n) => `/admin/clientes${n > 1 ? `?pagina=${n}` : ''}`;
   <div class="lista-clientes" data-lista-filtrable>
     {clientes.map((c) => (
       <a class="cliente" href={`/admin/clientes/${c.id}`} data-texto={llanoBusqueda(`${c.nombre} ${c.telefono || ''} ${(c.telefono || '').replace(/\D/g, '')} ${c.email || ''}`)}>
-        <div><strong>{c.nombre}</strong><div class="suave">{[c.telefono, c.email].filter(Boolean).join(' · ') || 'sin contacto'}</div></div>
+        <div><strong>{c.nombre}</strong>{(() => { const q = queQuiere(c); return q && <div class="que-quiere">{q.texto}{q.coche && <> <b>{q.coche}</b></>}</div>; })()}<div class="suave">{[c.telefono, c.email].filter(Boolean).join(' · ') || 'sin contacto'}</div></div>
         <div class="suave contadores">{c.mensajes > 0 && <span title="Mensajes">✉ {c.mensajes}</span>}{c.tareas > 0 && <span title="Tareas pendientes">☐ {c.tareas}</span>}{c.ventas > 0 && <span title="Compras">🚗 {c.ventas}</span>}</div>
       </a>
     ))}

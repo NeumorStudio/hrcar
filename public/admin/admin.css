@@ -376,3 +376,35 @@ button.enlace { background: none; border: 0; padding: 0; color: var(--azul); tex
 .guia summary { cursor: pointer; }
 .guia ol { margin: 10px 0 0; padding-left: 20px; }
 .guia li { margin: 6px 0; }
+
+/* contrato firmado: sus datos, su texto y la prórroga; opciones al enviarlo */
+.datos-contrato { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0; }
+.datos-contrato dt { color: var(--suave); }
+.datos-contrato dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .datos-contrato { grid-template-columns: 1fr; gap: 0; }
+  .datos-contrato dt { font-size: 13px; }
+  .datos-contrato dd { margin-bottom: 8px; }
+}
+.queda-poco { color: #b45309; }
+.prorrogas { margin: 4px 0 12px; padding-left: 18px; }
+.prorrogas li { margin: 4px 0; }
+.contrato-leido, .ampliar { margin-top: 14px; border-top: 1px solid var(--borde); padding-top: 8px; }
+.contrato-leido summary, .ampliar summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.texto-contrato { max-height: 60vh; overflow: auto; -webkit-overflow-scrolling: touch; background: #fff; color: #1a1a1a; border: 1px solid var(--borde); border-radius: var(--radio); padding: 14px 16px; margin-top: 8px; font-size: 14px; line-height: 1.55; }
+.texto-contrato h3 { font-size: 15px; text-align: center; margin: 0 0 12px; }
+.texto-contrato h4 { font-size: 14px; margin: 14px 0 6px; }
+.texto-contrato p, .texto-contrato ul { margin: 0 0 8px; }
+.texto-contrato ul { padding-left: 20px; }
+.opciones-contrato { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 10px 0; }
+.opciones-contrato .campo { margin: 0; min-width: 150px; }
+.casilla { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; flex: 1 1 260px; padding: 6px 0; line-height: 1.4; }
+.casilla[hidden] { display: none; }
+.casilla input { margin: 2px 0 0; width: 20px; height: 20px; flex: none; }
+.nota-contrato { font-size: 13px; margin: 4px 0 10px; }
+
+/* lo que quiere cada cliente, en la lista de Clientes */
+.cliente .que-quiere { font-size: 14px; margin: 2px 0 1px; }
+.cliente .que-quiere b { font-weight: 600; }
+.cabecera-msg .coche-msg { font-weight: 600; }
+.cliente .contadores { white-space: nowrap; flex-shrink: 0; }

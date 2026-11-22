@@ -1,0 +1,111 @@
+/* Editor del contrato (Ajustes → Contratos): subir el PDF o cambiar el texto. Todo lleva «ec-» para no chocar con
+   las clases del panel (.menu, .aviso, .hoja, .etiqueta…). Los botones grandes son los .boton del panel. */
+[data-editor-contrato], .ec-menu {
+  --ec-azul-suave: #e8eefc; --ec-azul-borde: #c7d4f5; --ec-verde-suave: #ecfdf5; --ec-ambar: #b45309;
+  --ec-ambar-suave: #fffbeb; --ec-ambar-borde: #fcd34d; --ec-rojo-suave: #fef2f2;
+}
+[data-editor-contrato] { margin-top: 4px; }
+[data-editor-contrato] :focus-visible, .ec-menu :focus-visible { outline: 2px solid var(--azul-claro); outline-offset: 2px; }
+
+.ec-pestanas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--fondo); padding: 4px; border-radius: 10px; margin-bottom: 18px; }
+.ec-pestanas button { border: 0; background: transparent; border-radius: 8px; padding: 10px 8px; font: inherit; font-weight: 600; color: var(--suave); display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.25; cursor: pointer; min-height: 44px; }
+.ec-pestanas button[aria-selected="true"] { background: var(--blanco); color: var(--azul); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.ec-pestanas svg { flex: none; }
+
+.ec-enlace { border: 0; background: none; padding: 4px 0; font: inherit; color: var(--azul-claro); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ec-acciones { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+.ec-pista { color: var(--suave); font-size: 0.9rem; margin: 10px 0 0; }
+
+/* Subir el PDF */
+.ec-zona { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; border: 2px dashed var(--ec-azul-borde); background: #f8faff; border-radius: var(--radio); padding: 28px 16px; cursor: pointer; transition: background .15s, border-color .15s; }
+.ec-zona:hover, .ec-zona.ec-encima { background: var(--ec-azul-suave); border-color: var(--azul-claro); }
+.ec-zona b { font-size: 1.05rem; }
+.ec-zona span { color: var(--suave); font-size: 0.9rem; }
+.ec-zona svg { color: var(--azul); margin-bottom: 4px; }
+.ec-cargando { display: flex; gap: 10px; align-items: center; padding: 14px 0; color: var(--suave); }
+.ec-rueda { width: 18px; height: 18px; border: 2px solid var(--ec-azul-borde); border-top-color: var(--azul); border-radius: 50%; animation: ec-gira .8s linear infinite; }
+@keyframes ec-gira { to { transform: rotate(360deg); } }
+.ec-nota { border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 0.95rem; }
+.ec-nota.ec-rojo { background: var(--ec-rojo-suave); border: 1px solid #fecaca; color: #991b1b; }
+.ec-nota.ec-azul { background: var(--ec-azul-suave); border: 1px solid var(--ec-azul-borde); color: #1e3a8a; }
+
+.ec-resumen { background: var(--ec-verde-suave); border: 1px solid #a7f3d0; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.ec-resumen b { display: block; }
+.ec-huecos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.ec-hueco { border: 1px solid var(--borde); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.ec-hueco.ec-falta { border-color: var(--ec-ambar-borde); background: var(--ec-ambar-suave); }
+.ec-cabeza { display: flex; justify-content: space-between; gap: 8px; font-size: 0.8rem; color: var(--suave); font-weight: 600; }
+.ec-etiqueta { border-radius: 99px; padding: 1px 8px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.ec-etiqueta.ec-ok { background: var(--ec-verde-suave); color: var(--verde); }
+.ec-etiqueta.ec-mira { background: #fef3c7; color: var(--ec-ambar); }
+.ec-contexto { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem; color: #374151; overflow-wrap: anywhere; }
+.ec-aqui { display: inline-block; min-width: 56px; border-bottom: 2px solid var(--azul); background: var(--ec-azul-suave); color: var(--azul); font: 600 0.8rem/1.6 Inter, system-ui, sans-serif; padding: 0 6px; border-radius: 4px 4px 0 0; text-align: center; }
+/* contrato ya relleno: lo que ponía antes de cambiarlo por un dato del panel */
+.ec-ponia { margin: 0; font-size: 0.82rem; color: var(--suave); overflow-wrap: anywhere; }
+.ec-elegir { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; margin: 0; }
+.ec-elegir select { flex: 1 1 220px; width: auto; min-width: 0; font-weight: 500; }
+
+/* Editor */
+.ec-banner { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; margin: 0 0 14px; }
+.ec-modo { display: inline-flex; border: 1px solid var(--borde); border-radius: 10px; padding: 3px; gap: 3px; margin-bottom: 10px; }
+.ec-modo button { border: 0; background: transparent; border-radius: 7px; padding: 6px 12px; font: inherit; font-weight: 600; color: var(--suave); font-size: 0.9rem; cursor: pointer; min-height: 36px; }
+.ec-modo button[aria-pressed="true"] { background: var(--ec-azul-suave); color: var(--azul); }
+/* se queda pegada justo debajo de la cabecera negra del panel (el JS pone --ec-arriba con su alto) */
+.ec-herramientas { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border: 1px solid var(--borde); border-bottom: 0; border-radius: 10px 10px 0 0; background: #fafafa; position: sticky; top: var(--ec-arriba, 0px); z-index: 40; }
+.ec-herramientas button { border: 1px solid var(--borde); background: var(--blanco); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; min-height: 36px; color: var(--texto); }
+.ec-herramientas button:hover { border-color: #cbd5e1; }
+.ec-herramientas button:disabled { opacity: 0.45; cursor: default; border-color: var(--borde); }
+.ec-herramientas .ec-insertar { background: var(--azul); color: #fff; border-color: var(--azul); }
+.ec-herramientas .ec-insertar:hover { background: var(--azul-claro); border-color: var(--azul-claro); }
+.ec-herramientas .ec-separa { flex: 1; }
+.ec-hoja { border: 1px solid var(--borde); padding: 26px 28px; min-height: 320px; background: var(--blanco); font-family: Georgia, "Times New Roman", serif; font-size: 15.5px; line-height: 1.6; color: #1f2937; overflow-wrap: anywhere; }
+#ec-editor { border-radius: 0 0 10px 10px; outline: none; }
+#ec-editor:focus-visible { box-shadow: inset 0 0 0 2px var(--ec-azul-borde); }
+#ec-vista { border-radius: 10px; }
+.ec-hoja h1 { font: 700 17px/1.35 Inter, system-ui, sans-serif; text-align: center; margin: 0 0 18px; letter-spacing: .02em; }
+.ec-hoja h2 { font: 700 15px/1.4 Inter, system-ui, sans-serif; margin: 20px 0 6px; }
+.ec-hoja p { margin: 0 0 10px; }
+.ec-hoja ul { margin: 0 0 10px; padding-left: 22px; }
+.ec-hoja li { margin-bottom: 2px; }
+.ec-dato { display: inline; background: var(--ec-azul-suave); color: var(--azul); border: 1px solid var(--ec-azul-borde); border-radius: 6px; padding: 0 6px; font: 600 .86em/1.5 Inter, system-ui, sans-serif; cursor: pointer; -webkit-box-decoration-break: clone; box-decoration-break: clone; user-select: none; -webkit-user-select: none; }
+.ec-dato:hover { border-color: var(--azul-claro); }
+.ec-dato.ec-raya { background: #fef3c7; color: var(--ec-ambar); border-color: var(--ec-ambar-borde); }
+.ec-dato.ec-activo { box-shadow: 0 0 0 2px var(--azul-claro); }
+#ec-vista mark { background: #fef3c7; color: inherit; padding: 0 2px; border-radius: 3px; }
+.ec-aviso-ejemplo { font-size: 0.9rem; color: var(--ec-ambar); margin: 0 0 8px; font-weight: 500; }
+
+.ec-comprobacion { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.85rem; }
+.ec-tit { font-weight: 600; color: var(--suave); margin-right: 2px; }
+.ec-chip { border-radius: 99px; padding: 2px 10px; border: 1px solid var(--borde); background: var(--blanco); white-space: nowrap; }
+.ec-chip.ec-si { border-color: #a7f3d0; background: var(--ec-verde-suave); color: #065f46; }
+.ec-chip.ec-no { border-color: var(--ec-ambar-borde); background: var(--ec-ambar-suave); color: var(--ec-ambar); }
+.ec-estado { font-size: 0.85rem; color: var(--suave); }
+.ec-confirmar { margin-top: 12px; border: 1px solid #fecaca; background: var(--ec-rojo-suave); border-radius: 10px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ec-confirmar p { margin: 0; flex: 1 1 240px; color: #991b1b; font-size: 0.95rem; }
+.boton.ec-rojo-boton { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+.boton.ec-rojo-boton:hover { background: #b91c1c; }
+.ec-ayuda { color: var(--suave); font-size: 0.85rem; margin: 10px 0 0; }
+
+/* Menú de datos (va en <body>, fuera de la caja) */
+.ec-menu { position: absolute; z-index: 55; width: 340px; max-height: min(460px, 70vh); overflow: auto; background: var(--blanco); border: 1px solid var(--borde); border-radius: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.18); padding: 8px; color: var(--texto); }
+.ec-titulo-menu { font-weight: 700; font-size: 0.9rem; padding: 6px 8px 2px; display: flex; justify-content: space-between; align-items: center; }
+.ec-cerrar { border: 0; background: none; font-size: 22px; line-height: 1; padding: 2px 8px; color: var(--suave); cursor: pointer; }
+.ec-menu h3 { margin: 10px 8px 4px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
+.ec-op { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; border: 0; background: none; border-radius: 8px; padding: 7px 8px; font: inherit; color: inherit; cursor: pointer; }
+.ec-op:hover, .ec-op:focus-visible { background: var(--ec-azul-suave); }
+.ec-op b { font-weight: 600; font-size: 0.92rem; }
+.ec-op span { font-size: 0.8rem; color: var(--suave); }
+.ec-op.ec-quitar b { color: var(--rojo); }
+.ec-fondo-menu { position: fixed; inset: 0; background: rgba(15,23,42,.35); z-index: 78; }
+
+@media (max-width: 720px) {
+  .ec-pestanas button { font-size: 0.9rem; flex-direction: column; gap: 4px; }
+  .ec-hoja { padding: 18px 14px; font-size: 15px; }
+  .ec-herramientas button { padding: 6px 8px; font-size: 0.85rem; }
+  .ec-herramientas .ec-separa { display: none; }
+  /* en el móvil, el menú sale desde abajo por encima de la barra inferior del panel */
+  .ec-menu { position: fixed; left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; max-height: 66vh; border-radius: 16px 16px 0 0; padding: 10px 10px calc(18px + env(safe-area-inset-bottom)); z-index: 80; }
+  /* el dato que se está cambiando se ve por encima del fondo oscuro */
+  .ec-dato.ec-activo { position: relative; z-index: 79; }
+  .ec-acciones .boton { flex: 1 1 auto; }
+}

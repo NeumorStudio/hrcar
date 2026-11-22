@@ -1,7 +1,7 @@
 // Captaciones (coches de particulares que el concesionario vende por ellos) y sus contratos.
 import { preparar, ajuste } from './datos.js';
 import { COSTES_POR_DEFECTO } from './importacion.js';
-import { PLANTILLA_SERIE, tokenNuevo, fechaLarga, usaCampo } from './contrato.js';
+import { PLANTILLA_SERIE, PLANTILLA_PRORROGA, tokenNuevo, fechaLarga, usaCampo, quitarLineas, alDia } from './contrato.js';
 import { MARCA } from './marca.js';
 
 export const ESTADOS_CAPTACION = ['Contactado', 'Pendiente de firma', 'Firmado', 'Publicado', 'Vendido', 'Descartado'];
@@ -36,7 +36,7 @@ export async function ajustesContrato(db) {
     garantia_meses: Number(g.garantia_meses) || MARCA.garantia_meses || 12,
     penalizacion: g.penalizacion || MARCA.penalizacion || '1.000 € + IVA',
     // el contrato de serie hasta que el dueño guarde el suyo
-    plantilla: propia || PLANTILLA_SERIE,
+    plantilla: propia ? alDia(propia) : PLANTILLA_SERIE,
     plantilla_editada: !!propia,
     firma: (await ajuste(db, 'contrato_firma')) || null,
   };
@@ -57,8 +57,8 @@ export async function listarCaptaciones(db, { estado = '' } = {}) {
   await preparar(db);
   const { results } = await db.prepare(`SELECT c.id, c.estado, c.url, c.portal, c.titulo, c.datos, c.vendedor_nombre, c.vendedor_telefono,
       c.precio_anuncio, c.precio_neto, c.precio_venta, c.gastos, c.coche, c.creado, c.actualizado, co.estado AS coche_estado,
-      (SELECT estado FROM contratos k WHERE k.captacion_id = c.id ORDER BY k.id DESC LIMIT 1) AS contrato_estado,
-      (SELECT caduca FROM contratos k WHERE k.captacion_id = c.id ORDER BY k.id DESC LIMIT 1) AS contrato_caduca
+      (SELECT estado FROM contratos k WHERE k.captacion_id = c.id AND COALESCE(k.datos, '') NOT LIKE '%"tipo":"prorroga"%' ORDER BY k.id DESC LIMIT 1) AS contrato_estado,
+      (SELECT caduca FROM contratos k WHERE k.captacion_id = c.id AND COALESCE(k.datos, '') NOT LIKE '%"tipo":"prorroga"%' ORDER BY k.id DESC LIMIT 1) AS contrato_caduca
     FROM captaciones c LEFT JOIN coches co ON co.slug = c.coche ORDER BY c.actualizado DESC LIMIT 300`).all();
   const lista = results.map((f) => ({ ...deFila(f), estado: estadoVisible(f) }));
   const cuenta = Object.fromEntries(ESTADOS_CAPTACION.map((e) => [e, 0]));
@@ -71,8 +71,8 @@ export async function obtenerCaptacion(db, id) {
   await preparar(db);
   const f = await db.prepare('SELECT c.*, co.estado AS coche_estado, co.titulo AS coche_titulo FROM captaciones c LEFT JOIN coches co ON co.slug = c.coche WHERE c.id = ?').bind(id).first();
   if (!f) return null;
-  const { results } = await db.prepare('SELECT id, token, estado, canal, destino, creado, enviado, visto, firmado, caduca, firmante_nombre, firmante_dni, huella FROM contratos WHERE captacion_id = ? ORDER BY id DESC').bind(id).all();
-  return { ...deFila(f), estado: estadoVisible(f), contratos: results.map(conCaducidad) };
+  const { results } = await db.prepare('SELECT id, token, estado, canal, destino, creado, enviado, visto, firmado, caduca, firmante_nombre, firmante_dni, huella, datos, texto_firmado FROM contratos WHERE captacion_id = ? ORDER BY id DESC').bind(id).all();
+  return { ...deFila(f), estado: estadoVisible(f), contratos: results.map((k) => conCaducidad({ ...k, datos: json(k.datos, {}) })) };
 }
 
 /** Un contrato pendiente cuyo enlace ya pasó de fecha se enseña como «Caducado». */
@@ -163,7 +163,7 @@ export function valoresContrato(cap, aj) {
     vendedor_telefono: cap.vendedor_telefono, vendedor_email: cap.vendedor_email,
     coche: [d.marca, d.modelo, d.version].filter(Boolean).join(' ') || cap.titulo, matricula: MAYUS(cap.matricula), bastidor: null,
     km: d.km != null ? String(d.km).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : null, anio: d.anio ? String(d.anio) : null,
-    precio_neto: eurosTexto(cap.precio_neto), plazo_dias: String(aj.plazo_dias),
+    precio_neto: eurosTexto(cap.precio_neto), plazo_dias: String(aj.plazo_dias), gastos: cap.gastos > 0 ? eurosTexto(cap.gastos) : null,
     garantia_meses: String(aj.garantia_meses), penalizacion: aj.penalizacion,
   };
 }
@@ -178,7 +178,7 @@ export function faltaDelDueno(aj) {
 }
 
 /** Crea un contrato nuevo para la captación (anula los pendientes anteriores). Devuelve { id, token, caduca }. */
-export async function crearContrato(db, cap, aj, { canal, destino }) {
+export async function crearContrato(db, cap, aj, { canal, destino, plazo_dias, con_gastos }) {
   if (cap.precio_neto == null) throw new Error('Pon primero lo que recibe el vendedor (precio neto).');
   if (!cap.vendedor_nombre) throw new Error('Pon primero el nombre del vendedor.');
   // sin la firma (o el NIF) del dueño el contrato saldría con huecos: antes lo firma él
@@ -187,15 +187,72 @@ export async function crearContrato(db, cap, aj, { canal, destino }) {
   const token = tokenNuevo();
   const caduca = new Date(Date.now() + aj.dias_enlace * 86400000).toISOString();
   const valores = valoresContrato(cap, aj);
+  // los días de exclusiva se eligen al enviar (por defecto, los de Ajustes)
+  const dias = entero(plazo_dias, 1, 365);
+  if (dias) valores.plazo_dias = String(dias);
+  // lo que invierte el dueño sale solo si lo marca al enviar; si no, esa frase no aparece en el contrato
+  let plantilla = aj.plantilla;
+  if (!(con_gastos !== false && cap.gastos > 0)) { valores.gastos = null; plantilla = quitarLineas(plantilla, 'gastos'); }
   // de una vez (anular los anteriores, crear el nuevo y cambiar el estado): dos envíos a la vez no dejan dos enlaces válidos
   const r = await db.batch([
     db.prepare("UPDATE contratos SET estado = 'Anulado' WHERE captacion_id = ? AND estado IN ('Pendiente', 'Visto')").bind(cap.id),
     db.prepare(`INSERT INTO contratos (captacion_id, token, canal, destino, plantilla, datos, firma_empresa, caduca, enviado)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
-      .bind(cap.id, token, texto(canal, 20), texto(destino, 120), aj.plantilla, JSON.stringify(valores), aj.firma, caduca),
+      .bind(cap.id, token, texto(canal, 20), texto(destino, 120), plantilla, JSON.stringify(valores), aj.firma, caduca),
     db.prepare("UPDATE captaciones SET estado = CASE WHEN estado IN ('Contactado', 'Pendiente de firma') THEN 'Pendiente de firma' ELSE estado END, actualizado = datetime('now') WHERE id = ?").bind(cap.id),
   ]);
   return { id: r[1].meta.last_row_id, token, caduca };
+}
+
+const esProrroga = (k) => k?.datos?.tipo === 'prorroga';
+/** La exclusiva firmada: el contrato, sus prórrogas firmadas y hasta cuándo dura (ms). null si aún no hay contrato firmado. */
+export function exclusiva(contratos) {
+  const principal = (contratos || []).find((k) => k.estado === 'Firmado' && !esProrroga(k));
+  if (!principal) return null;
+  const prorrogas = contratos.filter((k) => k.estado === 'Firmado' && esProrroga(k) && Number(k.datos.contrato_base) === principal.id);
+  const dias = Number(principal.datos?.plazo_dias) || null;
+  const firmado = principal.firmado ? Date.parse(principal.firmado) : NaN;
+  let hasta = dias && Number.isFinite(firmado) ? firmado + dias * 86400000 : null;
+  for (const p of prorrogas) {
+    const h = Date.parse(p.datos.hasta_iso || '');
+    if (Number.isFinite(h) && (!hasta || h > hasta)) hasta = h;
+  }
+  return { principal, prorrogas, dias, hasta };
+}
+
+/** Anexo de prórroga de la exclusiva (el contrato firmado no se toca). Devuelve { id, token, caduca, dias, fin }. */
+export async function crearProrroga(db, cap, aj, { canal, destino, dias }) {
+  const ex = exclusiva(cap.contratos);
+  if (!ex) throw new Error('Primero tiene que estar firmado el contrato.');
+  const n = entero(dias, 1, 365);
+  if (!n) throw new Error('Elige cuántos días amplías la exclusiva.');
+  const f = faltaDelDueno({ ...aj, plantilla: PLANTILLA_PRORROGA });
+  if (f.firma || f.nif || f.quien) throw new Error(`Antes de mandarla, fírmala tú: falta ${[f.firma && 'tu firma', f.nif && 'tu NIF', f.quien && 'quién firma'].filter(Boolean).join(' y ')}. Recarga la página y vuelve a enviarla.`);
+  const b = ex.principal.datos || {};
+  const ahora = Date.now();
+  // se suma desde el final de la exclusiva (o desde hoy, si ya terminó)
+  const hastaNuevo = Math.max(ex.hasta || ahora, ahora) + n * 86400000;
+  const valores = {
+    ciudad: aj.ciudad || b.ciudad, fecha: fechaLarga(),
+    empresa_nombre: aj.empresa_nombre || b.empresa_nombre, empresa_nif: aj.empresa_nif || b.empresa_nif,
+    empresa_domicilio: aj.empresa_domicilio || b.empresa_domicilio, empresa_representante: aj.empresa_representante || b.empresa_representante,
+    vendedor_nombre: b.vendedor_nombre || ex.principal.firmante_nombre, vendedor_dni: b.vendedor_dni || ex.principal.firmante_dni,
+    vendedor_domicilio: b.vendedor_domicilio || null, vendedor_telefono: cap.vendedor_telefono, vendedor_email: cap.vendedor_email,
+    coche: b.coche || cap.titulo, matricula: b.matricula || MAYUS(cap.matricula), bastidor: b.bastidor || null,
+    contrato_numero: String(ex.principal.id), contrato_fecha: fechaLarga(new Date(ex.principal.firmado)),
+    fin_anterior: ex.hasta ? fechaLarga(new Date(ex.hasta)) : null, prorroga_dias: String(n), fin_nuevo: fechaLarga(new Date(hastaNuevo)),
+    tipo: 'prorroga', contrato_base: ex.principal.id, hasta_iso: new Date(hastaNuevo).toISOString(),
+  };
+  const token = tokenNuevo();
+  const caduca = new Date(ahora + aj.dias_enlace * 86400000).toISOString();
+  const r = await db.batch([
+    db.prepare("UPDATE contratos SET estado = 'Anulado' WHERE captacion_id = ? AND estado IN ('Pendiente', 'Visto')").bind(cap.id),
+    db.prepare(`INSERT INTO contratos (captacion_id, token, canal, destino, plantilla, datos, firma_empresa, caduca, enviado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
+      .bind(cap.id, token, texto(canal, 20), texto(destino, 120), PLANTILLA_PRORROGA, JSON.stringify(valores), aj.firma, caduca),
+    db.prepare("UPDATE captaciones SET actualizado = datetime('now') WHERE id = ?").bind(cap.id),
+  ]);
+  return { id: r[1].meta.last_row_id, token, caduca, dias: n, fin: valores.fin_nuevo };
 }
 
 export async function contratoPorToken(db, token) {
