@@ -7,6 +7,7 @@ import { llanoBusqueda, coincide } from '../../lib/crm.js';
 import { fotoMini } from '../../lib/plantillas.js';
 import { euros, subtitulo, tieneFotos, SIN_FOTO } from '../../lib/formato.js';
 import { tituloLimpio } from '../../lib/nombres.js';
+import { diasEnStock, hoyMadrid, sumarDias } from '../../lib/diario.js';
 const db = Astro.locals.runtime.env.DB;
 const q = Astro.url.searchParams;
 const soloVendidos = q.get('vendidos') === '1';
@@ -38,12 +39,23 @@ if (soloVendidos) {
 const hayVendidosSinCargar = !soloVendidos && cuenta('Vendido') > ULTIMOS_VENDIDOS;
 const enlacePagina = (n) => `/admin/inventario?vendidos=1${busqueda ? `&q=${encodeURIComponent(busqueda)}` : ''}${n > 1 ? `&pagina=${n}` : ''}`;
 const n = (k, uno, varios) => `${k} ${k === 1 ? uno : varios}`;
+// días en stock y avisos (ITV), solo de los que no están vendidos
+const hoy = hoyMadrid();
+const enVenta = coches.filter((c) => c.estado !== 'Vendido');
+const dias = (c) => (c.estado === 'Vendido' ? null : diasEnStock(c, hoy));
+const mediaDias = enVenta.length ? Math.round(enVenta.reduce((a, c) => a + (dias(c) ?? 0), 0) / enVenta.length) : null;
+const claseDias = (d) => (d > 90 ? 'alerta' : d > 60 ? 'aviso' : '');
+const fechaCorta = (f) => f.split('-').reverse().slice(0, 2).join('/');
+const avisoItv = (c) => {
+  if (c.estado === 'Vendido' || !c.itv || c.itv > sumarDias(hoy, 30)) return null;
+  return c.itv < hoy ? 'ITV caducada' : `ITV caduca el ${fechaCorta(c.itv)}`;
+};
 ---
 <Admin titulo="Inventario" seccion="inventario">
   <div class="fila-titulo">
     <div>
       <h1>{soloVendidos ? 'Coches vendidos' : 'Inventario'}</h1>
-      <p class="suave">{n(total, 'vehículo', 'vehículos')} · {n(cuenta('Disponible'), 'disponible', 'disponibles')} · {n(cuenta('Vendido'), 'vendido', 'vendidos')}{cuenta('Oculto') > 0 && ` · ${n(cuenta('Oculto'), 'oculto', 'ocultos')}`}</p>
+      <p class="suave">{n(total, 'vehículo', 'vehículos')} · {n(cuenta('Disponible'), 'disponible', 'disponibles')} · {n(cuenta('Vendido'), 'vendido', 'vendidos')}{cuenta('Oculto') > 0 && ` · ${n(cuenta('Oculto'), 'oculto', 'ocultos')}`}{!soloVendidos && mediaDias != null && ` · ${mediaDias} días de media en stock`}</p>
     </div>
     {soloVendidos ? <a class="boton secundario" href="/admin/inventario">Volver al inventario</a> : <a class="boton" href="/admin/coche/nuevo">+ Añadir vehículo</a>}
   </div>
@@ -75,11 +87,18 @@ const n = (k, uno, varios) => `${k} ${k === 1 ? uno : varios}`;
           <div class="chips">
             <span class={`chip ${c.estado}`} data-chip>{c.estado}</span>
             {c.precio_oferta != null && <span class="chip oferta">Oferta</span>}
+            {c.bajada && c.estado !== 'Vendido' && <span class="chip bajada" title={`Baja ${euros(c.bajada.cantidad)} cada ${c.bajada.cada} días, hasta ${euros(c.bajada.minimo)}`}>Baja solo</span>}
           </div>
         </div>
         <div class="cuerpo">
           <h3>{tituloLimpio(c)}</h3>
           <div class="suave">{subtitulo(c)}{c.matricula && ` · ${c.matricula}`}</div>
+          {dias(c) != null && (
+            <div class="dias">
+              <span class={claseDias(dias(c))}>{n(dias(c), 'día', 'días')} en stock</span>
+              {avisoItv(c) && <span class="alerta">· {avisoItv(c)}</span>}
+            </div>
+          )}
           <div class="precio">
             {c.precio_oferta != null && <s>{euros(c.precio)}</s>}
             {(c.precio_oferta ?? c.precio) > 0 ? euros(c.precio_oferta ?? c.precio) : 'Sin precio'}

@@ -3,6 +3,7 @@ import { registrarVenta } from '../../../../lib/crm.js';
 import { validarCoche, generarSlug, validarVenta } from '../../../../lib/validar.js';
 import { nombreDeRuta } from '../../../../lib/fotos.js';
 import { actualizarCaptacion } from '../../../../lib/captaciones.js';
+import { hoyMadrid, planBajada } from '../../../../lib/diario.js';
 const json = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 
 export async function POST({ request, locals }) {
@@ -11,6 +12,8 @@ export async function POST({ request, locals }) {
   if (!datos) return json({ ok: false, error: 'Datos no válidos.' }, 400);
   const { coche, error } = validarCoche(datos);
   if (error) return json({ ok: false, error }, 400);
+  coche.fecha_entrada ??= hoyMadrid(); // los días en stock cuentan desde hoy si no dice otra cosa
+  coche.bajada = planBajada(coche, null);
   let slug = generarSlug(coche);
   while (await obtenerCoche(db, slug)) slug = generarSlug(coche);
   const creado = await crearCoche(db, { ...coche, slug, og_imagen: null });

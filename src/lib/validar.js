@@ -1,6 +1,7 @@
 // Valida y normaliza lo que llega del formulario del panel antes de guardarlo.
 import { ESTADOS, TIPOS } from './datos.js';
 import { tituloLimpio } from './nombres.js';
+import { idYoutube, precioFinal } from './formato.js';
 
 const texto = (v, max = 200) => (v == null ? null : String(v).trim().slice(0, max) || null);
 const entero = (v, min, max) => {
@@ -18,6 +19,9 @@ export function generarSlug(c) {
   const hex = [...crypto.getRandomValues(new Uint8Array(3))].map((b) => b.toString(16).padStart(2, '0')).join('');
   return `${base || 'coche'}-${hex}`;
 }
+
+const fecha = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : null);
+export const LIBRO = ['Completo', 'Incompleto', 'No'];
 
 const FOTO_VALIDA = /^(\/fotos\/[A-Za-z0-9_-]{8,40}\.(webp|jpg|jpeg|png)|[A-Za-z0-9_-]{8,40}\.webp)$/;
 
@@ -50,7 +54,24 @@ export function validarCoche(d) {
     reservable: !!d.reservable,
     estado: ESTADOS.includes(d.estado) ? d.estado : 'Disponible',
     fotos: Array.isArray(d.fotos) ? d.fotos.filter((f) => typeof f === 'string' && FOTO_VALIDA.test(f)).slice(0, 20) : [],
+    // ficha interna (no sale en la web)
+    vin: texto(d.vin, 40)?.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20) || null,
+    fecha_compra: fecha(d.fecha_compra),
+    fecha_entrada: fecha(d.fecha_entrada),
+    itv: fecha(d.itv),
+    llaves: entero(d.llaves, 0, 9),
+    libro_mantenimiento: LIBRO.includes(d.libro_mantenimiento) ? d.libro_mantenimiento : null,
+    proveedor: texto(d.proveedor, 120),
+    video: null,
+    // bajada de precio programada: el API le añade desde cuándo y desde qué precio cuenta
+    bajada: d.bajada_activa ? { cantidad: entero(d.bajada_cantidad, 1, 1000000), cada: entero(d.bajada_cada, 1, 365), minimo: entero(d.bajada_minimo, 0, 10000000) } : null,
   };
+  const video = texto(d.video, 300);
+  if (video) {
+    const id = idYoutube(video);
+    if (!id) return { error: 'Ese enlace de vídeo no es de YouTube. Copia el enlace del vídeo desde YouTube (Compartir → Copiar enlace).' };
+    c.video = `https://www.youtube.com/watch?v=${id}`;
+  }
   if (!c.marca || !c.modelo) return { error: 'Faltan la marca o el modelo.' };
   if (!c.anio) return { error: 'Falta el año.' };
   if (!c.combustible) return { error: 'Falta el combustible.' };
@@ -59,6 +80,11 @@ export function validarCoche(d) {
   if (c.precio == null) return { error: 'Falta el precio.' };
   if (d.en_oferta && c.precio_oferta == null) return { error: 'Has marcado «En oferta»: escribe el precio de oferta (o desmárcalo).' };
   if (c.precio_oferta != null && c.precio_oferta >= c.precio) return { error: 'El precio de oferta tiene que ser menor que el precio normal.' };
+  if (c.bajada) {
+    const b = c.bajada;
+    if (b.cantidad == null || b.cada == null || b.minimo == null) return { error: 'Bajada de precio: escribe cuánto bajar, cada cuántos días y el precio mínimo (o desmárcala).' };
+    if (b.minimo >= precioFinal(c)) return { error: 'Bajada de precio: el precio mínimo tiene que ser menor que el precio que se ve ahora.' };
+  }
   if (!c.titulo) c.titulo = [c.marca, c.modelo, c.version].filter(Boolean).join(' ');
   if (c.estado === 'Vendido') c.fecha_venta = new Date().toISOString().slice(0, 10);
   else c.fecha_venta = null;

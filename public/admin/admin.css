@@ -110,6 +110,10 @@ input.error, select.error, textarea.error { border-color: var(--rojo); backgroun
 .chip.Oculto { background: #e5e7eb; color: #374151; }
 .coche.oculto-web .foto img { opacity: 0.55; }
 .chip.oferta { background: #fee2e2; color: #b91c1c; }
+.chip.bajada { background: #e0e7ff; color: #3730a3; }
+.coche .dias { font-size: 0.8rem; color: var(--suave); display: flex; gap: 6px; flex-wrap: wrap; }
+.coche .dias .aviso { color: #b45309; font-weight: 600; }
+.coche .dias .alerta { color: #b91c1c; font-weight: 600; }
 .chips { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; }
 .vacio { text-align: center; padding: 48px 16px; color: var(--suave); }
 
@@ -408,3 +412,23 @@ button.enlace { background: none; border: 0; padding: 0; color: var(--azul); tex
 .cliente .que-quiere b { font-weight: 600; }
 .cabecera-msg .coche-msg { font-weight: 600; }
 .cliente .contadores { white-space: nowrap; flex-shrink: 0; }
+
+/* Estadísticas de la web */
+.resumen small.cambio { font-size: 0.78rem; color: var(--suave); }
+.resumen small.cambio.sube { color: var(--verde); }
+.resumen small.cambio.baja { color: var(--rojo); }
+.leyenda { display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 10px; font-size: 0.85rem; color: var(--suave); }
+.leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.leyenda i.visitas, .grafica .visitas { background: var(--azul); fill: var(--azul); }
+.leyenda i.vistas, .grafica .vistas { background: #c7d7ee; fill: #c7d7ee; }
+.grafica { display: block; width: 100%; height: auto; }
+.grafica .eje { stroke: var(--borde); }
+.grafica text { font-size: 11px; fill: var(--suave); }
+.barras { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.barras li { display: grid; grid-template-columns: minmax(90px, 38%) 1fr auto; align-items: center; gap: 10px; font-size: 0.9rem; }
+.barras li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barras .barra { height: 10px; background: var(--fondo); border-radius: 999px; overflow: hidden; }
+.barras .barra span { display: block; height: 100%; background: var(--azul); border-radius: 999px; }
+.barras b { min-width: 2.5em; text-align: right; }
+.caja .nota { margin: 12px 0 0; font-size: 0.8rem; }
+.chip.aviso-chip { background: #fef3c7; color: #92400e; margin-left: 6px; }

@@ -5,7 +5,9 @@ import { NEGOCIO } from '../negocio.js';
 // Al editar, «Guardar cambios» está siempre abajo, en cualquier paso (para cambiar solo el precio, por ejemplo).
 import { ESTADOS, TIPOS } from '../lib/datos.js';
 import { fotoUrl, fotoMini } from '../lib/plantillas.js';
-import { precioFinal } from '../lib/formato.js';
+import { precioFinal, euros } from '../lib/formato.js';
+import { proximaBajada } from '../lib/diario.js';
+import { LIBRO } from '../lib/validar.js';
 interface Props { coche: any | null; marcas: string[]; modelos: string[]; base?: any | null; venta?: any | null; captacion?: any | null }
 const { coche, marcas, modelos, base = null, venta = null, captacion = null } = Astro.props;
 const q = Astro.url.searchParams;
@@ -17,6 +19,7 @@ const desdeCaptacion = captacion ? {
   carroceria: dc.carroceria, puertas: dc.puertas, cambio: dc.cambio, anio: dc.anio, km: dc.km, color: dc.color, etiqueta_dgt: dc.etiqueta_dgt,
   garantia_meses: dc.garantia_meses ?? captacion.garantia_contrato ?? 12, descripcion: dc.descripcion, matricula: captacion.matricula,
   coste: captacion.precio_neto != null ? captacion.precio_neto + (captacion.gastos || 0) : undefined,
+  proveedor: captacion.vendedor_nombre || undefined,
   precio: captacion.precio_venta ?? undefined,
   notas: [`Coche de ${captacion.vendedor_nombre || 'un particular'} (captación n.º ${captacion.id}).`, captacion.precio_neto != null ? `Recibe ${captacion.precio_neto} € al venderse; gastos ${captacion.gastos || 0} €.` : null, captacion.vendedor_telefono ? `Teléfono: ${captacion.vendedor_telefono}.` : null].filter(Boolean).join(' '),
 } : null;
@@ -54,6 +57,14 @@ const AYUDA_ESTADO: Record<string, string> = {
 };
 const fecha = (f) => (f ? f.split('-').reverse().join('/') : '');
 const MAX_FOTOS = 20;
+// días en stock: si no tiene fecha de entrada, cuenta desde que se dio de alta
+const entrada = c.fecha_entrada || (coche ? String(coche.creado || '').slice(0, 10) : '');
+const b = c.bajada || null;
+const siguiente = coche && b && c.estado === 'Disponible' ? proximaBajada(b) : null;
+const ayudaBajada = !coche || !b
+  ? 'Baja el precio que se ve en la web (el normal sale tachado) mientras el coche esté Disponible. Nunca por debajo del mínimo.'
+  : c.estado !== 'Disponible' ? 'En pausa: solo baja mientras está Disponible.'
+  : siguiente ? `Próxima bajada: el ${fecha(siguiente.fecha)}, a ${euros(siguiente.precio)}.` : 'Ya está en el precio mínimo.';
 ---
 <form class="formulario-coche" data-formulario-coche data-desde-calculadora={!coche && !captacion && !base && q.get('origen') === 'calculadora' ? '1' : ''} data-api={nuevo ? '/api/admin/coches' : `/api/admin/coches/${c.slug}`} data-metodo={nuevo ? 'POST' : 'PUT'} data-estado-inicial={nuevo ? '' : c.estado} data-actualizado={nuevo ? '' : (c.actualizado ?? '')} data-max-fotos={MAX_FOTOS} novalidate>
   <div class="caja aviso-borrador" data-borrador hidden>
@@ -125,7 +136,20 @@ const MAX_FOTOS = 20;
       <label class="campo"><span>Matrícula</span><input type="text" name="matricula" value={v('matricula')} style="text-transform:uppercase" autocomplete="off" /></label>
       <label class="campo"><span>Coste (€) <span class="nota">(lo que pagas; si es de un particular, lo que recibe él + tus gastos)</span></span><input type="number" name="coste" min="0" value={v('coste')} inputmode="numeric" /></label>
     </div>
-    <label class="campo"><span>Notas</span><textarea name="notas" placeholder="Proveedor, reparaciones, documentación pendiente…">{v('notas')}</textarea></label>
+    <div class="dos">
+      <label class="campo"><span>Bastidor (VIN)</span><input type="text" name="vin" value={v('vin')} maxlength="20" style="text-transform:uppercase" autocomplete="off" spellcheck="false" /></label>
+      <label class="campo"><span>Proveedor <span class="nota">(a quién se lo compraste)</span></span><input type="text" name="proveedor" value={v('proveedor')} maxlength="120" autocomplete="off" /></label>
+    </div>
+    <div class="tres">
+      <label class="campo"><span>Fecha de compra</span><input type="date" name="fecha_compra" value={v('fecha_compra')} /></label>
+      <label class="campo"><span>Entrada en stock <span class="nota">(cuenta los días)</span></span><input type="date" name="fecha_entrada" value={entrada} /></label>
+      <label class="campo"><span>La ITV caduca el <span class="nota">(avisa en Tareas)</span></span><input type="date" name="itv" value={v('itv')} /></label>
+    </div>
+    <div class="dos">
+      <label class="campo"><span>Llaves</span><select name="llaves"><option value="">Sin apuntar</option>{[1, 2, 3].map((n) => <option value={n} selected={c.llaves === n}>{n === 1 ? '1 llave (sin copia)' : `${n} llaves`}</option>)}</select></label>
+      <label class="campo"><span>Libro de mantenimiento</span><select name="libro_mantenimiento"><option value="">Sin apuntar</option>{LIBRO.map((l) => <option value={l} selected={c.libro_mantenimiento === l}>{l}</option>)}</select></label>
+    </div>
+    <label class="campo"><span>Notas</span><textarea name="notas" placeholder="Reparaciones, documentación pendiente…">{v('notas')}</textarea></label>
     <div class="pie-pasos"><button type="button" class="boton secundario" data-atras>← Atrás</button><button type="button" class="boton" data-siguiente>Siguiente →</button></div>
   </section>
 
@@ -156,6 +180,7 @@ const MAX_FOTOS = 20;
         </figure>
       ))}
     </div>
+    <label class="campo" style="margin-top:18px"><span>Vídeo de YouTube <span class="nota">(opcional: sale en la ficha del coche)</span></span><input type="url" name="video" value={v('video')} placeholder="https://youtu.be/…" inputmode="url" autocomplete="off" /></label>
     <div class="pie-pasos"><button type="button" class="boton secundario" data-atras>← Atrás</button><button type="button" class="boton" data-siguiente>Siguiente →</button></div>
   </section>
 
@@ -167,6 +192,15 @@ const MAX_FOTOS = 20;
     </div>
     <label class="interruptor"><input type="checkbox" name="en_oferta" checked={c.precio_oferta != null} data-activa="precio_oferta" /> <span>En oferta (el precio normal sale tachado)</span></label>
     <label class="campo" data-depende="precio_oferta" hidden={c.precio_oferta == null}><span>Precio de oferta (€)</span><input type="number" name="precio_oferta" min="0" value={v('precio_oferta')} inputmode="numeric" /></label>
+    <label class="interruptor"><input type="checkbox" name="bajada_activa" checked={!!b} data-activa="bajada" /> <span>Bajar el precio solo mientras no se venda</span></label>
+    <div data-depende="bajada" hidden={!b}>
+      <div class="tres">
+        <label class="campo"><span>Bajar (€)</span><input type="number" name="bajada_cantidad" min="1" value={b?.cantidad ?? ''} placeholder="300" inputmode="numeric" /></label>
+        <label class="campo"><span>Cada (días)</span><input type="number" name="bajada_cada" min="1" max="365" value={b?.cada ?? ''} placeholder="15" inputmode="numeric" /></label>
+        <label class="campo"><span>Sin bajar de (€)</span><input type="number" name="bajada_minimo" min="0" value={b?.minimo ?? ''} inputmode="numeric" /></label>
+      </div>
+      <p class="suave" style="margin-top:0">{ayudaBajada}</p>
+    </div>
     <label class="interruptor"><input type="checkbox" name="reservable" checked={c.reservable !== false} /> <span>Permitir pre-reserva de 100 € desde la web</span></label>
     <div class="etiqueta">Estado</div>
     <div class="opciones" style="margin-bottom:14px" data-estados>

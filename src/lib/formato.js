@@ -35,3 +35,18 @@ export const ordenListado = (coches) => [
   ...coches.filter((c) => c.estado !== 'Vendido'),
   ...coches.filter((c) => c.estado === 'Vendido'),
 ];
+
+/** El código de 11 letras de un vídeo de YouTube (youtu.be, watch?v=, /shorts/, /embed/…), o null si el enlace no es de YouTube. */
+export function idYoutube(enlace) {
+  const s = String(enlace || '').trim();
+  if (!s) return null;
+  let u;
+  try { u = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`); } catch { return null; }
+  const host = u.hostname.toLowerCase().replace(/^(www\.|m\.|music\.)/, '');
+  let id = null;
+  if (host === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+  else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    id = u.pathname === '/watch' ? u.searchParams.get('v') : u.pathname.match(/^\/(?:shorts|embed|live|v)\/([^/?#]+)/)?.[1];
+  }
+  return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+}

@@ -5,7 +5,7 @@ import Tarjeta from '../Tarjeta.astro';
 import Faq from '../Faq.astro';
 import Formulario from '../Formulario.astro';
 import { fotoUrl, fotoMini } from '../../lib/plantillas.js';
-import { eurosMiles as euros, kmsMiles as kms, precioFinal, tieneFotos } from '../../lib/formato.js';
+import { eurosMiles as euros, kmsMiles as kms, precioFinal, tieneFotos, idYoutube } from '../../lib/formato.js';
 import { partesTitulo, tituloLimpio, motor } from '../../lib/nombres.js';
 import { cuotaMensual, ejemploRepresentativo, taeCoche, porcentaje, TIN, PLAZO_POR_DEFECTO } from '../finanzas.js';
 import { whatsappCoche, TELEFONO } from '../datos-contacto.js';
@@ -44,6 +44,7 @@ const parecidos = otros; // ya vienen elegidos de la base de datos: misma marca 
 const wa = whatsappCoche(c);
 const preguntas = PREGUNTAS_FICHA;
 // JSON dentro de <script>: «<» escapado, así ningún título puede cerrar la etiqueta
+const video = idYoutube(c.video);
 const ld = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
 const jsonLd = {
   '@context': 'https://schema.org', '@type': 'Car', name: limpio, url, brand: c.marca ? { '@type': 'Brand', name: c.marca } : undefined, model: c.modelo, vehicleModelDate: c.anio ? String(c.anio) : undefined,
@@ -89,6 +90,11 @@ const jsonLd = {
           {datos.map(([n, v]) => <div><small>{n}</small><b>{v}</b></div>)}
         </div>
         {c.descripcion && <><h2 style="font-size:1.7rem;margin:22px 0 10px">Descripción</h2><p class="descripcion">{c.descripcion}</p></>}
+        {video && (
+          <div class="video-coche">
+            <iframe src={`https://www.youtube-nocookie.com/embed/${video}?rel=0`} title={`Vídeo del ${tituloLimpio(c)}`} loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+          </div>
+        )}
         <div class="garantia">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
           <p>{garantiaFicha(c.garantia_meses)}</p>

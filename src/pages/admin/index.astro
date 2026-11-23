@@ -8,8 +8,10 @@ import { usoFotos } from '../../lib/fotos.js';
 import { recuperarPendientes } from '../../lib/pendientes.js';
 import { euros } from '../../lib/formato.js';
 import { contarPendientesFirma } from '../../lib/captaciones.js';
+import { tareasDelDia } from '../../lib/diario.js';
 const env = Astro.locals.runtime.env;
 await recuperarPendientes(env); // mensajes que llegaron mientras la base de datos no respondía
+await tareasDelDia(env.DB); // bajadas de precio y avisos de ITV de hoy, si la web aún no los ha hecho
 const [r, sinLeer, uso, sinFirmar] = await Promise.all([resumenPanel(env.DB), ultimosSinLeer(env.DB, 3), usoFotos(env.DB).catch(() => null), contarPendientesFirma(env.DB).catch(() => 0)]);
 const n = (e) => r.estados[e] ?? 0;
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
