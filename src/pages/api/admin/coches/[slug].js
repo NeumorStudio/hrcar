@@ -2,6 +2,7 @@ import { obtenerCoche, actualizarCoche, cambiarEstado, borrarCoche, subirAlPrinc
 import { registrarVenta, ventaDeCoche, borrarVenta } from '../../../../lib/crm.js';
 import { validarCoche, validarVenta } from '../../../../lib/validar.js';
 import { borrarFotos, nombreDeRuta } from '../../../../lib/fotos.js';
+import { planBajada } from '../../../../lib/diario.js';
 const json = (d, status = 200) => new Response(JSON.stringify(d), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 
 /** Al dejar de estar vendido, se quita su última venta del registro (si el dueño lo pide). */
@@ -23,6 +24,7 @@ export async function PUT({ request, params, locals }) {
   coche.og_imagen = existente.fotos[0] === coche.fotos[0] ? existente.og_imagen : null;
   coche.ficha_campos = null; // al editar, la ficha muestra todos los datos
   if (existente.estado === 'Vendido' && coche.estado === 'Vendido') coche.fecha_venta = existente.fecha_venta;
+  coche.bajada = planBajada(coche, existente); // si no cambia nada, la bajada sigue contando desde donde iba
   await actualizarCoche(db, params.slug, coche);
   await asignarFotos(db, params.slug, coche.fotos.map(nombreDeRuta));
   // las fotos que el dueño quitó se borran ahora, cuando el cambio ya está guardado (si cancela, no se pierde nada)

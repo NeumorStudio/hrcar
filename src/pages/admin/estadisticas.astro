@@ -1,0 +1,127 @@
+---
+// Estadísticas de la web: cuánta gente entra, de dónde llega, qué coches miran y cuántos acaban escribiendo.
+// Sin cookies ni datos de nadie (ver src/lib/visitas.js). No cuenta al dueño con el panel abierto ni a los buscadores.
+import Admin from '../../layouts/Admin.astro';
+import { estadisticas } from '../../lib/estadisticas.js';
+import { euros } from '../../lib/formato.js';
+const PERIODOS = [7, 30, 90];
+const pedido = Number(Astro.url.searchParams.get('dias'));
+const dias = PERIODOS.includes(pedido) ? pedido : 30;
+const e = await estadisticas(Astro.locals.runtime.env.DB, dias);
+
+const NOMBRES = { contacto: 'Contacto', encargo: 'Encargo a medida', financiacion: 'Financiación', tasacion: 'Tasación', reserva: 'Pre-reserva', interes: 'Interés por un coche' };
+const corta = (f) => f.split('-').reverse().slice(0, 2).join('/');
+const cambio = (ahora, antes) => {
+  if (!antes) return null;
+  const p = Math.round(((ahora - antes) / antes) * 100);
+  return { clase: p > 0 ? 'sube' : p < 0 ? 'baja' : '', texto: `${p > 0 ? '+' : ''}${p} % que los ${dias} días anteriores` };
+};
+const cVisitas = cambio(e.visitas, e.previo.visitas);
+const cVistas = cambio(e.vistas, e.previo.vistas);
+const conversion = e.visitas ? `${((e.contactosTotal / e.visitas) * 100).toFixed(1).replace('.', ',')} %` : '—';
+
+// gráfica de barras dibujada aquí (el panel no carga librerías de fuera)
+const W = 700, H = 180, ARRIBA = 18, ABAJO = 22;
+const alto = H - ARRIBA - ABAJO;
+const maximo = Math.max(1, ...e.serie.map((d) => d.vistas));
+const paso = W / e.serie.length;
+const ancho = Math.max(2, paso * 0.72);
+const y = (v) => H - ABAJO - (v / maximo) * alto;
+const xBarra = (i) => i * paso + (paso - ancho) / 2;
+const ultimo = e.serie.length - 1;
+const marcas = [
+  { i: 0, x: 0, ancla: 'start' },
+  { i: Math.floor(ultimo / 2), x: Math.floor(ultimo / 2) * paso + paso / 2, ancla: 'middle' },
+  { i: ultimo, x: W, ancla: 'end' },
+];
+const maxOrigen = Math.max(1, ...e.porOrigen.map((o) => o.n));
+const maxPagina = Math.max(1, ...e.paginas.map((p) => p.n));
+const maxContacto = Math.max(1, ...e.contactos.map((c) => c.n));
+const ancha = (n, max) => `width:${Math.max(2, (n / max) * 100)}%`;
+const vacio = e.vistas === 0;
+const precio = (c) => (c.precio_oferta ? `${euros(c.precio_oferta)} (antes ${euros(c.precio)})` : c.precio ? euros(c.precio) : '—');
+---
+<Admin titulo="Estadísticas" seccion="estadisticas">
+  <div class="fila-titulo">
+    <div><h1>Estadísticas de la web</h1><p class="suave">Cuánta gente entra, de dónde viene y qué coches mira. No cuenta tus visitas con el panel abierto ni a los buscadores.</p></div>
+    <nav class="pestanas" aria-label="Periodo">{PERIODOS.map((p) => <a href={`?dias=${p}`} class={p === dias ? 'activo' : ''}>{p} días</a>)}</nav>
+  </div>
+
+  <div class="tarjetas-resumen">
+    <div class="resumen"><b>{e.visitas}</b><span>visitas</span>{cVisitas && <small class={`cambio ${cVisitas.clase}`}>{cVisitas.texto}</small>}</div>
+    <div class="resumen"><b>{e.vistas}</b><span>páginas vistas</span>{cVistas && <small class={`cambio ${cVistas.clase}`}>{cVistas.texto}</small>}</div>
+    <a class="resumen" href="/admin/mensajes"><b>{e.contactosTotal}</b><span>contactos por la web</span></a>
+    <div class="resumen"><b>{conversion}</b><span>de las visitas acaban escribiendo</span></div>
+  </div>
+
+  {vacio && <div class="caja vacio">Aún no hay visitas apuntadas: se cuentan desde que se activó esta página. Vuelve en unos días.</div>}
+
+  {!vacio && (
+    <div class="caja">
+      <h2>Día a día</h2>
+      <p class="leyenda"><span><i class="visitas"></i>Visitas (llegan de fuera)</span><span><i class="vistas"></i>Páginas vistas</span></p>
+      <svg class="grafica" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Visitas por día en los últimos ${dias} días`}>
+        <line x1="0" x2={W} y1={H - ABAJO} y2={H - ABAJO} class="eje" />
+        <text x="0" y="11">{maximo}</text>
+        {e.serie.map((d, i) => (
+          <g>
+            <title>{`${corta(d.dia)}: ${d.visitas} visitas, ${d.vistas} páginas vistas`}</title>
+            <rect class="vistas" x={xBarra(i)} y={y(d.vistas)} width={ancho} height={H - ABAJO - y(d.vistas)} rx="1.5" />
+            <rect class="visitas" x={xBarra(i)} y={y(d.visitas)} width={ancho} height={H - ABAJO - y(d.visitas)} rx="1.5" />
+          </g>
+        ))}
+        {marcas.map((m) => <text x={m.x} y={H - 5} text-anchor={m.ancla}>{corta(e.serie[m.i].dia)}</text>)}
+      </svg>
+    </div>
+  )}
+
+  {!vacio && (
+    <div class="dos paneles">
+      <div class="caja">
+        <h2>De dónde llegan</h2>
+        {e.porOrigen.length === 0 ? <p class="suave">Sin datos aún.</p> : (
+          <ul class="barras">{e.porOrigen.map((o) => (
+            <li><span>{o.origen}</span><span class="barra"><span style={ancha(o.n, maxOrigen)}></span></span><b>{o.n}</b></li>
+          ))}</ul>
+        )}
+        <p class="suave nota">«Directo»: escriben la dirección, la tienen guardada o llegan desde una app que no dice de dónde vienen.</p>
+      </div>
+      <div class="caja">
+        <h2>Páginas más vistas</h2>
+        <ul class="barras">{e.paginas.map((p) => (
+          <li><span>{p.nombre}</span><span class="barra"><span style={ancha(p.n, maxPagina)}></span></span><b>{p.n}</b></li>
+        ))}</ul>
+      </div>
+    </div>
+  )}
+
+  {e.masVistos.length > 0 && (
+    <div class="caja">
+      <h2>Coches más vistos</h2>
+      <table class="tabla tarjetas">
+        <thead><tr><th>Coche</th><th>Vistas de la ficha</th><th>Contactos</th><th>Días en stock</th><th>Precio</th></tr></thead>
+        <tbody>{e.masVistos.map((c) => (
+          <tr>
+            <td data-etiqueta="Coche">
+              <a href={`/admin/coche/${c.slug}`}>{c.titulo}</a>{c.estado !== 'Disponible' && <span class="suave"> · {c.estado}</span>}
+              {c.vistas >= 25 && c.contactos === 0 && c.estado === 'Disponible' && <span class="chip aviso-chip" title="Muchos lo miran y nadie escribe: revisa el precio, las fotos o la descripción">Lo miran, nadie escribe</span>}
+            </td>
+            <td data-etiqueta="Vistas" class="num">{c.vistas}</td>
+            <td data-etiqueta="Contactos" class="num">{c.contactos}</td>
+            <td data-etiqueta="Días en stock" class="num">{c.dias ?? '—'}</td>
+            <td data-etiqueta="Precio" class="num">{precio(c)}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  )}
+
+  {e.contactos.length > 0 && (
+    <div class="caja">
+      <h2>Contactos por formulario</h2>
+      <ul class="barras">{e.contactos.map((c) => (
+        <li><span>{NOMBRES[c.formulario] || c.formulario || 'Otro'}</span><span class="barra"><span style={ancha(c.n, maxContacto)}></span></span><b>{c.n}</b></li>
+      ))}</ul>
+    </div>
+  )}
+</Admin>

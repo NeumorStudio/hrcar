@@ -716,11 +716,18 @@
   ['marca', 'modelo', 'version'].forEach(function (n) { $('[name=' + n + ']', form).addEventListener('input', ponerTitulo); });
   ponerTitulo(); // al duplicar o venir de la calculadora, el título ya sale hecho
 
-  // oferta: el precio rebajado solo se ve (y cuenta) si «En oferta» está marcado
-  var oferta = $('[data-activa]', form);
-  var campoOferta = oferta ? $('[data-depende="' + oferta.getAttribute('data-activa') + '"]', form) : null;
-  var verOferta = function (enfocar) { if (!campoOferta) return; campoOferta.hidden = !oferta.checked; if (oferta.checked && enfocar) $('input', campoOferta).focus(); };
-  if (oferta) oferta.addEventListener('change', function () { verOferta(true); });
+  // interruptores que enseñan sus campos (oferta, bajada de precio): lo de dentro solo se ve (y cuenta) si están marcados
+  var interruptores = $$('[data-activa]', form).map(function (sw) {
+    return { sw: sw, campo: $('[data-depende="' + sw.getAttribute('data-activa') + '"]', form) };
+  }).filter(function (x) { return x.campo; });
+  var verOferta = function (enfocar) {
+    interruptores.forEach(function (x) {
+      var abrir = x.sw.checked && x.campo.hidden;
+      x.campo.hidden = !x.sw.checked;
+      if (abrir && enfocar === x.sw) { var i = $('input', x.campo); if (i) i.focus(); }
+    });
+  };
+  interruptores.forEach(function (x) { x.sw.addEventListener('change', function () { verOferta(x.sw); }); });
 
   // estado: explicación, datos de la venta al venderlo y, al dejar de estar vendido, quitar su venta
   var AYUDAS = {};

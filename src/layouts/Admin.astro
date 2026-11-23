@@ -19,6 +19,7 @@ const enlaces = [
   ['captaciones', '/admin/captaciones', 'Captaciones'],
   ['calculadora', '/admin/calculadora', 'Calculadora'],
   ['mensajes', '/admin/mensajes', 'Mensajes'],
+  ['estadisticas', '/admin/estadisticas', 'Estadísticas'],
   ['web', '/admin/web', 'Tu web'],
   ['ajustes', '/admin/ajustes', 'Ajustes'],
 ];
@@ -31,7 +32,7 @@ const ICONOS: Record<string, string> = {
 };
 const icono = (id: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONOS[id]}</svg>`;
 const abajo = [['inicio', '/admin', 'Inicio'], ['inventario', '/admin/inventario', 'Coches'], ['mensajes', '/admin/mensajes', 'Mensajes'], ['clientes', '/admin/clientes', 'Clientes']];
-const enMas = ['tareas', 'ventas', 'captaciones', 'calculadora', 'web', 'ajustes'].includes(seccion);
+const enMas = ['tareas', 'ventas', 'captaciones', 'calculadora', 'estadisticas', 'web', 'ajustes'].includes(seccion);
 // cambia con cada publicación: el móvil del dueño no se queda con un admin.js viejo
 // eslint-disable-next-line no-undef
 const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
@@ -93,6 +94,7 @@ const VERSION = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
             <a href="/admin/ventas" class={seccion === 'ventas' ? 'activo' : ''}>Ventas</a>
             <a href="/admin/captaciones" class={seccion === 'captaciones' ? 'activo' : ''}>Captaciones y contratos</a>
             <a href="/admin/calculadora" class={seccion === 'calculadora' ? 'activo' : ''}>Calculadora de importación</a>
+            <a href="/admin/estadisticas" class={seccion === 'estadisticas' ? 'activo' : ''}>Estadísticas de la web</a>
             <a href="/admin/web" class={seccion === 'web' ? 'activo' : ''}>Tu web: qué se ve</a>
             <a href="/admin/ajustes" class={seccion === 'ajustes' ? 'activo' : ''}>Ajustes y copia de seguridad</a>
             <a href="/" target="_blank" rel="noopener">Ver la web ↗</a>

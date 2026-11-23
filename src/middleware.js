@@ -12,6 +12,7 @@
 //    - lo que no se sirva con el dominio propio lleva noindex (sin dominio todavía: todo).
 import { sesionValida, leerCookie, hayContrasena, renovarSesion, crearSesion, cabeceraCookie } from './lib/acceso.js';
 import { estadoWeb } from './lib/datos.js';
+import { trasVisita } from './lib/visitas.js';
 import { deTexto, rutaQuitada, aplicar } from './lib/secciones.js';
 import { NEGOCIO, HOSTS_PROPIOS, WHATSAPP_URL } from './negocio.js';
 
@@ -89,6 +90,8 @@ export async function onRequest(context, next) {
     // versión del contenido + lo oculto; si la base de datos falla, la última lectura buena
     const { estado, deReserva } = await leerEstado(env, cache, url, locals.runtime.ctx);
     const ocultos = deTexto(estado?.oculto);
+    // estadísticas y tarea del día (solo si la base de datos responde)
+    const contar = () => { if (!deReserva) trasVisita({ env, request, url, ruta, hostVisible: visible.host, estado, ctx: locals.runtime.ctx }); };
     locals.ocultosWeb = ocultos; // el mapa del sitio usa esta misma lectura
     // la copia de reserva puede ser de antes de que el dueño ocultara algo: se le vuelve a quitar lo oculto
     const servirCopia = async (copia) => {
@@ -112,7 +115,10 @@ export async function onRequest(context, next) {
       try {
         clave = new Request(`${url.origin}${ruta}?v=${estado.version}&b=${BUILD}`, { method: 'GET' }); // cambia con cada publicación
         const guardada = await cache.match(clave);
-        if (guardada) return haciaFuera(new Response(guardada.body, guardada), tecnica); // copia con cabeceras modificables
+        if (guardada) {
+          contar();
+          return haciaFuera(new Response(guardada.body, guardada), tecnica); // copia con cabeceras modificables
+        }
       } catch {
         clave = null;
       }
@@ -150,6 +156,7 @@ export async function onRequest(context, next) {
       copia.headers.set('Cache-Control', 'public, max-age=0, s-maxage=2592000'); // la de reserva aguanta 30 días
       locals.runtime.ctx.waitUntil(Promise.all([cache.put(clave, r.clone()), cache.put(reserva, copia)]).catch(() => {}));
     }
+    if (r.status === 200) contar();
     return haciaFuera(r, tecnica);
   }
 

@@ -3,12 +3,14 @@
 import semilla from '../data/coches.json';
 import { NEGOCIO } from '../negocio.js';
 
-const CAMPOS_JSON = ['fotos', 'ficha_campos'];
+const CAMPOS_JSON = ['fotos', 'ficha_campos', 'bajada'];
 const COLUMNAS = [
   'slug', 'titulo', 'marca', 'modelo', 'version', 'estado', 'tipo', 'carroceria', 'combustible', 'cambio',
   'puertas', 'potencia_cv', 'color', 'etiqueta_dgt', 'garantia_meses', 'ubicacion', 'anio', 'km',
   'precio', 'precio_oferta', 'precio_financiado', 'reservable', 'fotos', 'descripcion', 'notas',
   'matricula', 'coste', 'ficha_campos', 'og_imagen', 'orden', 'fecha_venta',
+  // ficha interna (no sale en la web), vídeo de YouTube y bajada de precio programada
+  'vin', 'fecha_compra', 'fecha_entrada', 'itv', 'llaves', 'libro_mantenimiento', 'proveedor', 'video', 'bajada',
 ];
 export const ESTADOS = ['Disponible', 'Próximamente', 'Reservado', 'Vendido', 'Oculto'];
 /** Estados que no se enseñan en la web pública: «Oculto» es un coche que el dueño aún prepara o retira un tiempo. */
@@ -92,12 +94,26 @@ const ESQUEMA = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     endpoint TEXT NOT NULL UNIQUE, datos TEXT NOT NULL, usuario TEXT, dispositivo TEXT, creado TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
+  // visitas de la web por día, página y de dónde llegan: sin cookies ni IP, solo un contador
+  `CREATE TABLE IF NOT EXISTS visitas (
+    dia TEXT NOT NULL, ruta TEXT NOT NULL, origen TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (dia, ruta, origen)
+  )`,
 ];
 // columnas añadidas después de la primera versión
 const COLUMNAS_NUEVAS = [
   ['mensajes', 'cliente_id', 'INTEGER'],
   ['clientes', 'tel_norm', 'TEXT'], // teléfono y email normalizados: buscar un cliente sin leer toda la tabla
   ['clientes', 'email_norm', 'TEXT'],
+  ['coches', 'vin', 'TEXT'],
+  ['coches', 'fecha_compra', 'TEXT'],
+  ['coches', 'fecha_entrada', 'TEXT'], // si falta, cuenta desde que se dio de alta
+  ['coches', 'itv', 'TEXT'], // fecha en que caduca la ITV
+  ['coches', 'llaves', 'INTEGER'],
+  ['coches', 'libro_mantenimiento', 'TEXT'],
+  ['coches', 'proveedor', 'TEXT'],
+  ['coches', 'video', 'TEXT'],
+  ['coches', 'bajada', 'TEXT'], // JSON {cantidad, cada, minimo, desde, inicio}
 ];
 // Sin índices, cada listado de clientes leía clientes × mensajes filas y agotaba la cuota diaria gratuita de D1.
 const INDICES = [
@@ -118,7 +134,7 @@ const INDICES = [
   'CREATE INDEX IF NOT EXISTS idx_contratos_captacion ON contratos(captacion_id)',
 ];
 // Súbelo cuando cambien ESQUEMA, COLUMNAS_NUEVAS o INDICES: así cada arranque solo hace una lectura.
-const VERSION_ESQUEMA = '3';
+const VERSION_ESQUEMA = '4';
 
 /** Teléfono comparable: solo cifras, sin 00 ni el prefijo de España (600 11 22 33 = +34 600112233). */
 export const normTel = (t) => {
@@ -137,9 +153,10 @@ export async function preparar(db) {
       const hecho = await db.prepare("SELECT valor FROM ajustes WHERE clave = 'esquema'").first('valor').catch(() => null);
       if (hecho === VERSION_ESQUEMA) return;
       await db.batch(ESQUEMA.map((s) => db.prepare(s)));
+      const columnas = {};
       for (const [tabla, col, tipo] of COLUMNAS_NUEVAS) {
-        const { results } = await db.prepare(`PRAGMA table_info(${tabla})`).all();
-        if (!results.some((c) => c.name === col)) await db.prepare(`ALTER TABLE ${tabla} ADD COLUMN ${col} ${tipo}`).run();
+        columnas[tabla] ??= (await db.prepare(`PRAGMA table_info(${tabla})`).all()).results.map((c) => c.name);
+        if (!columnas[tabla].includes(col)) await db.prepare(`ALTER TABLE ${tabla} ADD COLUMN ${col} ${tipo}`).run();
       }
       await db.batch(INDICES.map((s) => db.prepare(s)));
       // clientes de antes: rellenar el teléfono y el email normalizados (en SQL, pocas consultas aunque haya miles)
@@ -345,9 +362,9 @@ export async function version(db) {
 /** Versión del contenido y lo que el dueño oculta de la web, en una sola lectura (el middleware lo pide en cada página). */
 export async function estadoWeb(db) {
   await preparar(db);
-  const { results } = await db.prepare("SELECT clave, valor FROM ajustes WHERE clave IN ('version', 'web_oculto')").all();
+  const { results } = await db.prepare("SELECT clave, valor FROM ajustes WHERE clave IN ('version', 'web_oculto', 'tareas_dia')").all();
   const m = Object.fromEntries(results.map((f) => [f.clave, f.valor]));
-  return { version: m.version ?? '0', oculto: m.web_oculto ?? null };
+  return { version: m.version ?? '0', oculto: m.web_oculto ?? null, tareasDia: m.tareas_dia ?? null };
 }
 
 // ------------------------------------------------------------------ mensajes
